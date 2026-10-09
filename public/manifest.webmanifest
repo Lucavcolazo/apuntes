@@ -1,0 +1,19 @@
+{
+  "name": "Tomapuntes",
+  "short_name": "Tomapuntes",
+  "description": "Leé, subrayá y descansá. Un tomate a la vez.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f3eee3",
+  "theme_color": "#1a1815",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "file_handlers": [
+    { "action": "/apuntes", "accept": { "application/pdf": [".pdf"] } }
+  ]
+}

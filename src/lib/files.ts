@@ -86,6 +86,7 @@ export async function importPdfs(sources: Source[], folderId: string | null = nu
       size: file.size,
       pages: pdf.numPages,
       lastPage: 1,
+      maxPage: 0,
       scale: null,
       addedAt: now,
       openedAt: now,

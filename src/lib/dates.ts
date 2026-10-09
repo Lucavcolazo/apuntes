@@ -21,3 +21,16 @@ export function formatDuration(ms: number) {
   if (!h) return `${m} min`;
   return m ? `${h} h ${m} min` : `${h} h`;
 }
+
+/** Días que faltan hasta una fecha YYYY-MM-DD (0 = hoy, negativo = ya pasó). */
+export function daysUntil(date: string) {
+  const [y, m, d] = date.split('-').map(Number);
+  const target = new Date(y, m - 1, d, 12);
+  return Math.round((target.getTime() - daysAgo(0).getTime()) / 86_400_000);
+}
+
+export function whenLabel(days: number) {
+  if (days === 0) return 'hoy';
+  if (days === 1) return 'mañana';
+  return `en ${days} días`;
+}

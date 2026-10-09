@@ -56,6 +56,15 @@ export interface Highlight {
   text: string;
   note: string;
   createdAt: number;
+  /** Repaso espaciado: en qué "caja" está y cuándo vuelve a tocar. Sin esto, es nueva. */
+  review?: Review;
+}
+
+export interface Review {
+  box: number;
+  due: number;
+  last: number;
+  reps: number;
 }
 
 /** Tiempo de lectura acumulado por libro y por día. id = `${docId}|${date}` */
@@ -73,7 +82,31 @@ export interface PomodoroLog {
   minutes: number;
 }
 
+export type EvalKind = 'parcial' | 'tp' | 'final' | 'otro';
+
+export interface EvalNote {
+  id: string;
+  text: string;
+  done: boolean;
+  at: number;
+}
+
+/** Un parcial, TP o final: fecha, notas y los apuntes que entran. */
+export interface Evaluation {
+  id: string;
+  kind: EvalKind;
+  title: string;
+  folderId: string | null;
+  /** YYYY-MM-DD */
+  date: string;
+  done: boolean;
+  notes: EvalNote[];
+  docIds: string[];
+  createdAt: number;
+}
+
 export const db = new Dexie('apuntes') as Dexie & {
+  evaluations: EntityTable<Evaluation, 'id'>;
   reading: EntityTable<ReadingDay, 'id'>;
   pomodoros: EntityTable<PomodoroLog, 'id'>;
   folders: EntityTable<Folder, 'id'>;
@@ -123,6 +156,9 @@ export async function deleteDoc(id: string) {
     await db.files.delete(id);
     await db.highlights.where('docId').equals(id).delete();
   });
+  await db.evaluations.toCollection().modify((e) => {
+    e.docIds = e.docIds.filter((d) => d !== id);
+  });
   // El tiempo leído se conserva para las estadísticas aunque borres el PDF.
 }
 
@@ -140,6 +176,35 @@ db.version(3)
       }),
   );
 
+// v4: parciales y TPs. La fecha de parcial que tenía cada carpeta pasa a ser un parcial
+// con todos los apuntes de esa carpeta conectados.
+db.version(4)
+  .stores({ evaluations: 'id, date, folderId' })
+  .upgrade(async (tx) => {
+    const folders = await tx.table('folders').toArray();
+    const docs = await tx.table('docs').toArray();
+    for (const f of folders) {
+      if (!f.examDate) continue;
+      await tx.table('evaluations').add({
+        id: uid(),
+        kind: 'parcial',
+        title: `Parcial de ${f.name}`,
+        folderId: f.id,
+        date: f.examDate,
+        done: false,
+        notes: [],
+        docIds: docs.filter((d) => d.folderId === f.id).map((d) => d.id),
+        createdAt: Date.now(),
+      });
+    }
+    await tx
+      .table('folders')
+      .toCollection()
+      .modify((f) => {
+        delete f.examDate;
+      });
+  });
+
 export async function addReading(docId: string, date: string, ms: number) {
   const id = `${docId}|${date}`;
   await db.transaction('rw', db.reading, async () => {
@@ -156,8 +221,32 @@ export async function createFolder(name: string) {
 
 /** Borra la carpeta; sus apuntes quedan "Sin carpeta". */
 export async function deleteFolder(id: string) {
-  await db.transaction('rw', db.folders, db.docs, async () => {
+  await db.transaction('rw', db.folders, db.docs, db.evaluations, async () => {
     await db.docs.where('folderId').equals(id).modify({ folderId: null });
     await db.folders.delete(id);
+    await db.evaluations.where('folderId').equals(id).modify({ folderId: null });
   });
+}
+
+export const EVAL_KINDS: Record<EvalKind, string> = { parcial: 'Parcial', tp: 'TP', final: 'Final', otro: 'Entrega' };
+
+export async function createEvaluation(partial: Partial<Evaluation> = {}) {
+  const inTwoWeeks = new Date();
+  inTwoWeeks.setDate(inTwoWeeks.getDate() + 14);
+  const m = String(inTwoWeeks.getMonth() + 1).padStart(2, '0');
+  const d = String(inTwoWeeks.getDate()).padStart(2, '0');
+  const ev: Evaluation = {
+    id: uid(),
+    kind: 'parcial',
+    title: '',
+    folderId: null,
+    date: `${inTwoWeeks.getFullYear()}-${m}-${d}`,
+    done: false,
+    notes: [],
+    docIds: [],
+    createdAt: Date.now(),
+    ...partial,
+  };
+  await db.evaluations.add(ev);
+  return ev;
 }

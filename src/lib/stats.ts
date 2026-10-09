@@ -32,8 +32,10 @@ export interface Stats {
   byFolder: { name: string; ms: number }[];
 }
 
-export const progressOf = (d: Doc) =>
-  d.pages ? Math.min(100, Math.round(((d.maxPage ?? d.lastPage ?? 1) / d.pages) * 100)) : 0;
+/** Páginas leídas: la más lejana a la que llegaste (0 si nunca lo abriste). */
+export const pagesRead = (d: Doc) => d.maxPage ?? d.lastPage ?? 0;
+
+export const progressOf = (d: Doc) => (d.pages ? Math.min(100, Math.round((pagesRead(d) / d.pages) * 100)) : 0);
 
 export function computeStats(docs: Doc[], folders: Folder[], reading: ReadingDay[], pomodoros: PomodoroLog[]): Stats {
   const today = dayKey();
@@ -74,7 +76,7 @@ export function computeStats(docs: Doc[], folders: Folder[], reading: ReadingDay
     lastRead: doc.openedAt,
   }));
   const inProgress = progress
-    .filter((p) => p.pct < 100 && (p.ms > 0 || (p.doc.maxPage ?? 1) > 1))
+    .filter((p) => p.pct < 100 && (p.ms > 0 || pagesRead(p.doc) > 1))
     .sort((a, b) => b.lastRead - a.lastRead);
 
   const folderName = new Map(folders.map((f) => [f.id, f.name]));

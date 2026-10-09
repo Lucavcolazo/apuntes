@@ -15,6 +15,15 @@ export interface PageRect {
   h: number;
 }
 
+export interface PageMark {
+  key: string;
+  current: boolean;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 interface Props {
   pdf: PDFDocumentProxy;
   n: number;
@@ -23,13 +32,15 @@ interface Props {
   scale: number;
   root: HTMLElement | null;
   rects: PageRect[];
+  /** Coincidencias de la búsqueda en esta página. */
+  marks: PageMark[];
 }
 
 /**
  * Una página: canvas (imagen), capa de subrayados y capa de texto seleccionable encima.
  * Solo se dibuja cuando está cerca de la pantalla, para aguantar PDFs largos.
  */
-export const PdfPage = memo(function PdfPage({ pdf, n, width, height, scale, root, rects }: Props) {
+export const PdfPage = memo(function PdfPage({ pdf, n, width, height, scale, root, rects, marks }: Props) {
   const pageRef = useRef<HTMLDivElement>(null);
   const canvasHost = useRef<HTMLDivElement>(null);
   const textHost = useRef<HTMLDivElement>(null);
@@ -126,6 +137,17 @@ export const PdfPage = memo(function PdfPage({ pdf, n, width, height, scale, roo
           />
         ))}
       </div>
+      {marks.length > 0 && (
+        <div className="markLayer">
+          {marks.map((m) => (
+            <div
+              key={m.key}
+              className={`search-mark ${m.current ? 'current' : ''}`}
+              style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: `${m.w * 100}%`, height: `${m.h * 100}%` }}
+            />
+          ))}
+        </div>
+      )}
       <div className="textHost" ref={textHost} />
     </div>
   );

@@ -1,9 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
 import type { Pomodoro } from '../hooks/usePomodoro';
-import { createFolder, db, deleteDoc, deleteFolder, type Doc, type Folder } from '../lib/db';
-import { Link } from '../lib/router';
+import { exportBackup, importBackup } from '../lib/backup';
+import { daysUntil, whenLabel } from '../lib/dates';
+import { createEvaluation, createFolder, db, deleteDoc, deleteFolder, EVAL_KINDS, type Doc, type Evaluation, type Folder } from '../lib/db';
+import { sortEvaluations } from '../lib/evaluations';
+import { reviewQueue } from '../lib/review';
+import { downloadBlob } from '../lib/files';
+import { Link, navigate } from '../lib/router';
+import { AccountButton } from './Account';
 import { Icon } from './Icon';
+import { SectionTabs } from './SectionTabs';
 import { TomatoTimer } from './Pomodoro';
 import { toast } from './Toast';
 
@@ -39,6 +46,15 @@ export function Library({ docs, folders, view, onView, pomo, theme, onToggleThem
 
   const shown = view === 'all' ? sortedDocs : inFolder(view === 'none' ? null : view);
 
+  const highlights = useLiveQuery(() => db.highlights.toArray(), [], []);
+  const docIds = new Set(docs.map((d) => d.id));
+  const dueCount = reviewQueue(highlights.filter((h) => docIds.has(h.docId))).length;
+  const evaluations = useLiveQuery(() => db.evaluations.toArray(), [], []);
+  const { upcoming } = sortEvaluations(evaluations);
+  /** Lo próximo a rendir de cada carpeta. */
+  const nextEval = new Map<string, Evaluation>();
+  for (const ev of upcoming) if (ev.folderId && !nextEval.has(ev.folderId)) nextEval.set(ev.folderId, ev);
+
   return (
     <div className="home">
       <header className="home-head">
@@ -55,6 +71,12 @@ export function Library({ docs, folders, view, onView, pomo, theme, onToggleThem
           <Link to="/#inicio" className="btn ghost">
             <Icon name="chart" size={16} /> Resumen
           </Link>
+          <Link to={`/repaso${current ? `?carpeta=${current.id}` : ''}`} className="btn ghost">
+            <Icon name="cards" size={16} /> Repasar
+            {dueCount > 0 && <span className="pill tabular">{dueCount}</span>}
+          </Link>
+          <BackupMenu />
+          <AccountButton />
           <button className="icon-btn" onClick={onToggleTheme} title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
           </button>
@@ -63,6 +85,8 @@ export function Library({ docs, folders, view, onView, pomo, theme, onToggleThem
           </button>
         </div>
       </header>
+
+      <SectionTabs active="notes" badge={upcoming.filter((e) => daysUntil(e.date) <= 7).length} />
 
       <div className="home-grid">
         <section className="timer-card" aria-labelledby="timer-title">
@@ -85,9 +109,17 @@ export function Library({ docs, folders, view, onView, pomo, theme, onToggleThem
             view={view}
             onView={onView}
             onDropDoc={moveTo}
+            nextEval={nextEval}
           />
 
-          {current && <FolderHeader folder={current} count={shown.length} onDeleted={() => onView('all')} />}
+          {current && (
+            <FolderHeader
+              folder={current}
+              count={shown.length}
+              onDeleted={() => onView('all')}
+              extra={<FolderEval folder={current} next={nextEval.get(current.id)} docIds={shown.map((d) => d.id)} />}
+            />
+          )}
 
           {docs.length === 0 ? (
             <button className="dropzone" onClick={onUpload}>
@@ -139,6 +171,7 @@ function FolderBar({
   view,
   onView,
   onDropDoc,
+  nextEval,
 }: {
   folders: Folder[];
   counts: Record<string, number>;
@@ -147,6 +180,7 @@ function FolderBar({
   view: FolderView;
   onView: (v: FolderView) => void;
   onDropDoc: (docId: string, folderId: string | null) => void;
+  nextEval: Map<string, Evaluation>;
 }) {
   const [creating, setCreating] = useState(false);
   const [over, setOver] = useState<string | null>(null);
@@ -183,6 +217,7 @@ function FolderBar({
         >
           <Icon name="folder" size={14} />
           {f.name} <span className="n">{counts[f.id] ?? 0}</span>
+          <ExamBadge ev={nextEval.get(f.id)} />
         </button>
       ))}
       {folders.length > 0 && looseCount > 0 && (
@@ -220,7 +255,17 @@ function FolderBar({
   );
 }
 
-function FolderHeader({ folder, count, onDeleted }: { folder: Folder; count: number; onDeleted: () => void }) {
+function FolderHeader({
+  folder,
+  count,
+  onDeleted,
+  extra,
+}: {
+  folder: Folder;
+  count: number;
+  onDeleted: () => void;
+  extra: React.ReactNode;
+}) {
   const [renaming, setRenaming] = useState(false);
 
   const remove = async () => {
@@ -256,6 +301,7 @@ function FolderHeader({ folder, count, onDeleted }: { folder: Folder; count: num
       <span className="muted">
         {count} {count === 1 ? 'apunte' : 'apuntes'}
       </span>
+      {extra}
       <div className="folder-head-actions">
         <button className="icon-btn xs" onClick={() => setRenaming(true)} title="Renombrar carpeta">
           <Icon name="pencil" size={14} />
@@ -412,5 +458,121 @@ function MoveMenu({
         </button>
       )}
     </div>
+  );
+}
+
+function BackupMenu() {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [open]);
+
+  const doExport = async () => {
+    setBusy('Armando la copia…');
+    try {
+      const { blob, filename, docs, highlights } = await exportBackup();
+      downloadBlob(blob, filename);
+      toast(`Copia lista: ${docs} PDFs y ${highlights} subrayados`);
+    } catch {
+      toast('No se pudo armar la copia');
+    } finally {
+      setBusy(null);
+      setOpen(false);
+    }
+  };
+
+  const doImport = async (file: File) => {
+    setBusy('Restaurando…');
+    try {
+      const r = await importBackup(file);
+      toast(`Restaurados ${r.docs} PDFs y ${r.highlights} subrayados${r.skipped ? ` (${r.skipped} sin archivo)` : ''}`);
+      // Los ajustes (etiquetas, sonidos, pomodoro…) se leen al cargar la página.
+      setTimeout(() => location.reload(), 1600);
+    } catch (e) {
+      toast(e instanceof Error && e.message.includes('Tomapuntes') ? e.message : 'No se pudo leer esa copia');
+    } finally {
+      setBusy(null);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="backup" ref={ref}>
+      <button className={`icon-btn ${open ? 'active' : ''}`} onClick={() => setOpen(!open)} title="Copia de seguridad">
+        <Icon name="archive" />
+      </button>
+      {open && (
+        <div className="menu backup-menu" role="menu">
+          <div className="menu-title">Copia de seguridad</div>
+          {busy ? (
+            <p className="muted backup-busy">{busy}</p>
+          ) : (
+            <>
+              <button role="menuitem" onClick={doExport}>
+                <Icon name="download" size={14} /> Exportar todo (.zip)
+              </button>
+              <button role="menuitem" onClick={() => input.current?.click()}>
+                <Icon name="upload" size={14} /> Importar una copia…
+              </button>
+              <p className="muted backup-note">
+                Incluye PDFs, subrayados, notas, carpetas, estadísticas y ajustes. Guardala en iCloud o Drive.
+              </p>
+            </>
+          )}
+          <input
+            ref={input}
+            type="file"
+            accept=".zip,application/zip"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) void doImport(file);
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExamBadge({ ev }: { ev?: Evaluation }) {
+  if (!ev) return null;
+  const days = daysUntil(ev.date);
+  if (days < 0 || days > 60) return null;
+  return (
+    <span className={`exam-badge ${days <= 7 ? 'soon' : ''}`} title={`${EVAL_KINDS[ev.kind]} ${whenLabel(days)}`}>
+      {days === 0 ? 'hoy' : `${days}d`}
+    </span>
+  );
+}
+
+/** En el encabezado de la carpeta: lo próximo que se rinde de esa materia, o un atajo para anotarlo. */
+function FolderEval({ folder, next, docIds }: { folder: Folder; next?: Evaluation; docIds: string[] }) {
+  if (next) {
+    const days = daysUntil(next.date);
+    return (
+      <Link to={`/parciales/${next.id}`} className={`exam-chip ${days <= 7 ? 'soon' : ''}`}>
+        <Icon name="calendar" size={14} /> {EVAL_KINDS[next.kind]} {whenLabel(days)}
+      </Link>
+    );
+  }
+  return (
+    <button
+      className="btn ghost sm exam-add"
+      onClick={async () => {
+        const ev = await createEvaluation({ folderId: folder.id, title: `Parcial de ${folder.name}`, docIds });
+        navigate(`/parciales/${ev.id}`);
+      }}
+    >
+      <Icon name="calendar" size={14} /> Anotar parcial o TP
+    </button>
   );
 }

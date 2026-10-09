@@ -1,3 +1,4 @@
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dayKey } from '../lib/dates';
 import { db, uid } from '../lib/db';
@@ -88,14 +89,16 @@ export function usePomodoro() {
   const [overlay, setOverlay] = useState<Overlay>(() =>
     timer.running && timer.mode !== 'focus' && s.lockBreak ? 'break' : 'none',
   );
-  const [today, setToday] = useState(() => {
-    const t = lsGet('apuntes.pomodoro.today', { date: todayKey(), count: 0, minutes: 0 });
-    return t.date === todayKey() ? t : { date: todayKey(), count: 0, minutes: 0 };
-  });
+  // Una sola fuente: la base. El resumen y el tomate cuentan lo mismo, y a medianoche vuelve a cero solo.
+  const date = todayKey();
+  const todayLogs = useLiveQuery(() => db.pomodoros.where('date').equals(date).toArray(), [date], []);
+  const today = {
+    count: todayLogs.length,
+    minutes: todayLogs.reduce((sum, p) => sum + p.minutes, 0),
+  };
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => lsSet('apuntes.pomodoro.state', timer), [timer]);
-  useEffect(() => lsSet('apuntes.pomodoro.today', today), [today]);
 
   const remaining = timer.running ? Math.max(0, timer.endAt - now) : timer.remaining;
   const total = duration(timer.mode);
@@ -126,11 +129,6 @@ export function usePomodoro() {
     if (timer.mode === 'focus') {
       const cycle = timer.cycle + 1;
       const next: Mode = cycle % s.every === 0 ? 'long' : 'short';
-      setToday((t) =>
-        t.date === todayKey()
-          ? { ...t, count: t.count + 1, minutes: t.minutes + s.focus }
-          : { date: todayKey(), count: 1, minutes: s.focus },
-      );
       void db.pomodoros.add({ id: uid(), date: todayKey(), at: Date.now(), minutes: s.focus });
       setTimer({ mode: next, running: true, remaining: duration(next), endAt: Date.now() + duration(next), cycle });
       notify('¡Terminaste un pomodoro!', `Tomate ${s[next]} minutos de pausa.`);

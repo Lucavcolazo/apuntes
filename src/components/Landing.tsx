@@ -1,9 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDuration } from '../lib/dates';
+import { EVAL_KINDS } from '../lib/db';
+import { evalStatus, sortEvaluations } from '../lib/evaluations';
 import { db, type Doc, type Folder } from '../lib/db';
 import { Link, navigate } from '../lib/router';
+import { reviewQueue } from '../lib/review';
+import { useLocalState } from '../lib/storage';
 import { computeStats, type DayStat } from '../lib/stats';
+import { AccountButton, GuestBanner } from './Account';
 import { Icon } from './Icon';
 import { Splat } from './Splat';
 
@@ -66,6 +71,7 @@ export function Landing({ docs, folders, theme, onToggleTheme, onOpen }: Props) 
             <Link to="/apuntes" className="btn ghost">
               Mis apuntes
             </Link>
+            <AccountButton />
           </div>
         </nav>
 
@@ -102,9 +108,19 @@ export function Landing({ docs, folders, theme, onToggleTheme, onOpen }: Props) 
 function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; onOpen: (id: string) => void }) {
   const reading = useLiveQuery(() => db.reading.toArray(), [], []);
   const pomodoros = useLiveQuery(() => db.pomodoros.toArray(), [], []);
-  const highlightCount = useLiveQuery(() => db.highlights.count(), [], 0);
+  const highlights = useLiveQuery(() => db.highlights.toArray(), [], []);
+  const [goal, setGoal] = useLocalState('apuntes.goal', 30);
+  const evaluations = useLiveQuery(() => db.evaluations.toArray(), [], []);
   const stats = useMemo(() => computeStats(docs, folders, reading, pomodoros), [docs, folders, reading, pomodoros]);
   const folderName = new Map(folders.map((f) => [f.id, f.name]));
+  const docFolder = new Map(docs.map((d) => [d.id, d.folderId ?? null]));
+  const live = highlights.filter((h) => docFolder.has(h.docId));
+  const due = reviewQueue(live);
+
+  // Lo que viene: parciales y TPs pendientes con cuánto falta leer y a qué ritmo.
+  const exams = sortEvaluations(evaluations)
+    .upcoming.slice(0, 4)
+    .map((ev) => ({ ev, ...evalStatus(ev, docs, live) }));
 
   const delta =
     stats.prevWeekMs > 0 ? Math.round(((stats.weekMs - stats.prevWeekMs) / stats.prevWeekMs) * 100) : null;
@@ -121,6 +137,8 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
           Ir a mis apuntes <span aria-hidden="true">→</span>
         </Link>
       </header>
+
+      <GuestBanner />
 
       <div className="dash-grid">
         <article className="card week-card">
@@ -139,15 +157,62 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
         </article>
 
         <div className="tiles">
-          <Tile label="Hoy" value={formatDuration(stats.todayMs)} />
+          <GoalTile todayMs={stats.todayMs} goal={goal} onGoal={setGoal} />
           <Tile
             label="Racha"
             value={`${stats.streak} ${stats.streak === 1 ? 'día' : 'días'}`}
             hint={stats.streak ? 'seguidos leyendo' : 'leé hoy para empezar'}
           />
           <Tile label="Pomodoros hoy" value={String(stats.pomodorosToday)} hint={`${stats.pomodorosTotal} en total`} />
-          <Tile label="Subrayados" value={String(highlightCount)} hint={`${stats.finished} ${stats.finished === 1 ? 'libro terminado' : 'libros terminados'}`} />
+          <Link to="/repaso" className="tile tile-link">
+            <span className="stat-label">Para repasar</span>
+            <span className="tile-value">{due.length}</span>
+            <span className="muted tile-hint">
+              {due.length ? 'Repasar ahora →' : `${live.length} subrayados al día`}
+            </span>
+          </Link>
         </div>
+
+        {exams.length > 0 && (
+          <article className="card exams-card">
+            <div className="card-title-row">
+              <h3>Lo que viene</h3>
+              <Link to="/parciales" className="btn ghost sm">
+                Ver todo
+              </Link>
+            </div>
+            <ul className="exam-list">
+              {exams.map((e) => (
+                <li key={e.ev.id} className={e.days <= 7 ? 'soon' : ''}>
+                  <div className="exam-when">
+                    <span className="exam-days tabular">{e.days === 0 ? '¡Hoy!' : e.days}</span>
+                    {e.days > 0 && <span className="muted">{e.days === 1 ? 'día' : 'días'}</span>}
+                  </div>
+                  <div className="exam-body">
+                    <Link to={`/parciales/${e.ev.id}`} className="exam-title">
+                      <span className={`kind kind-${e.ev.kind}`}>{EVAL_KINDS[e.ev.kind]}</span>
+                      <strong>{e.ev.title || 'Sin título'}</strong>
+                    </Link>
+                    <span className="muted">
+                      {!e.docs.length
+                        ? 'Sin apuntes conectados'
+                        : e.pagesLeft
+                          ? `Te faltan ${e.pagesLeft} páginas: unas ${e.perDay} por día`
+                          : 'Ya leíste todo: a repasar'}
+                      {e.due > 0 && ` · ${e.due} para repasar`}
+                      {e.notesOpen > 0 && ` · ${e.notesOpen} ${e.notesOpen === 1 ? 'nota pendiente' : 'notas pendientes'}`}
+                    </span>
+                  </div>
+                  {e.due > 0 && (
+                    <Link to={`/repaso?parcial=${e.ev.id}`} className="btn ghost sm">
+                      Repasar
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </article>
+        )}
 
         <article className="card continue-card">
           <h3>Seguí leyendo</h3>
@@ -218,7 +283,8 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-const STEPS = [15, 30, 60, 90, 120, 180, 240, 360, 480, 720];
+// Topes "redondos" cuya mitad también es entera (sin "7.5" en el eje).
+const STEPS = [10, 20, 30, 60, 90, 120, 180, 240, 360, 480, 720];
 
 /** Minutos leídos en los últimos 7 días. Una sola serie: sin leyenda, el título la nombra. */
 function WeekChart({ days }: { days: DayStat[] }) {
@@ -293,5 +359,39 @@ function WeekChart({ days }: { days: DayStat[] }) {
         </tbody>
       </table>
     </figure>
+  );
+}
+
+const GOALS = [15, 30, 45, 60, 90, 120];
+const RING = 2 * Math.PI * 22;
+
+/** Meta diaria: un anillo que se llena con los minutos de hoy. */
+function GoalTile({ todayMs, goal, onGoal }: { todayMs: number; goal: number; onGoal: (g: number) => void }) {
+  const pct = Math.min(1, todayMs / 60_000 / goal);
+  const reached = pct >= 1;
+  return (
+    <div className={`tile goal-tile ${reached ? 'reached' : ''}`}>
+      <div className="goal-top">
+        <div>
+          <span className="stat-label">Hoy</span>
+          <span className="tile-value">{formatDuration(todayMs)}</span>
+        </div>
+        <svg width="54" height="54" viewBox="0 0 54 54" className="goal-ring" role="img" aria-label={`${Math.round(pct * 100)}% de la meta`}>
+          <circle cx="27" cy="27" r="22" className="track" />
+          <circle cx="27" cy="27" r="22" className="bar" strokeDasharray={RING} strokeDashoffset={RING * (1 - pct)} transform="rotate(-90 27 27)" />
+          <text x="27" y="27" textAnchor="middle" dominantBaseline="central">{reached ? '✓' : `${Math.round(pct * 100)}%`}</text>
+        </svg>
+      </div>
+      <label className="muted tile-hint goal-select">
+        {reached ? '¡Meta cumplida! ' : 'Meta: '}
+        <select value={goal} onChange={(e) => onGoal(Number(e.target.value))} aria-label="Meta diaria">
+          {GOALS.map((g) => (
+            <option key={g} value={g}>
+              {g < 60 ? `${g} min` : `${g / 60} h`}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   );
 }

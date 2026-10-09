@@ -12,7 +12,10 @@ import { HighlightPopover } from './HighlightPopover';
 import { HighlightsPanel } from './HighlightsPanel';
 import { Icon } from './Icon';
 import { BreakOverlay, MiniTomato } from './Pomodoro';
-import { PdfPage, type PageRect } from './PdfPage';
+import { PdfPage, type PageMark, type PageRect } from './PdfPage';
+import { ReaderSidebar, type SidebarTab } from './ReaderSidebar';
+import type { SearchHit } from '../lib/pdfSearch';
+import type { Rect } from '../lib/db';
 import { Sounds } from './Sounds';
 import { toast } from './Toast';
 
@@ -41,6 +44,8 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
   const [page, setPage] = useState(doc.lastPage || 1);
+  const pageRef = useRef(page);
+  pageRef.current = page;
   const [pageInput, setPageInput] = useState(String(doc.lastPage || 1));
   const [selBox, setSelBox] = useState<{ x: number; y: number } | null>(null);
   const [popover, setPopover] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -48,6 +53,9 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
   const [panelOpen, setPanelOpen] = useLocalState('apuntes.panelOpen', true);
   const [tone, setTone] = useLocalState<Tone>('apuntes.tone', 'cream');
   const [idle, setIdle] = useState(false);
+  const [sidebar, setSidebar] = useState<SidebarTab | null>(null);
+  const [focusToken, setFocusToken] = useState(0);
+  const [search, setSearch] = useState<{ hits: SearchHit[]; current: number }>({ hits: [], current: 0 });
   const [saving, setSaving] = useState(false);
   const history = useHighlightHistory(doc.id);
   const onBreak = pomo.overlay !== 'none' || (pomo.running && pomo.mode !== 'focus');
@@ -68,19 +76,30 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
         if (!file) throw new Error('missing');
         loaded = await loadPdf(file.blob);
         if (!alive) return;
-        const dims: { w: number; h: number }[] = [];
-        for (let i = 1; i <= loaded.numPages; i++) {
-          const vp = (await loaded.getPage(i)).getViewport({ scale: 1 });
-          dims.push({ w: vp.width, h: vp.height });
-        }
+        // Abrimos ya con el tamaño de la primera página para todas (casi siempre son iguales)
+        // y medimos el resto en segundo plano: un PDF de 300 páginas no tiene que esperar.
+        const firstVp = (await loaded.getPage(1)).getViewport({ scale: 1 });
+        const first = { w: firstVp.width, h: firstVp.height };
         if (!alive) return;
         const available = (viewerRef.current?.clientWidth ?? 900) - 48;
-        const fit = available / Math.max(...dims.map((d) => d.w));
         anchor.current = { page: doc.lastPage || 1, frac: 0 };
-        setScale(doc.scale ?? clamp(fit, 0.5, 1.5));
-        setSizes(dims);
+        setScale(doc.scale ?? clamp(available / first.w, 0.5, 1.5));
+        setSizes(Array.from({ length: loaded.numPages }, () => first));
         setPdf(loaded);
         void db.docs.update(doc.id, { openedAt: Date.now(), pages: loaded.numPages });
+
+        const dims = [first];
+        for (let i = 2; i <= loaded.numPages; i++) {
+          const vp = (await loaded.getPage(i)).getViewport({ scale: 1 });
+          if (!alive) return;
+          dims.push({ w: vp.width, h: vp.height });
+        }
+        if (dims.some((d) => d.w !== first.w || d.h !== first.h)) {
+          const el = pageEls()[pageRef.current - 1];
+          const v = viewerRef.current;
+          if (el && v) anchor.current = { page: pageRef.current, frac: (v.scrollTop - el.offsetTop) / el.offsetHeight };
+          setSizes(dims);
+        }
       } catch {
         if (alive) setError('No se pudo abrir este PDF.');
       }
@@ -143,7 +162,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
       viewerRef.current.scrollTop = el.offsetTop + a.frac * el.offsetHeight - (a.frac === 0 ? 72 : 0);
       anchor.current = null;
     }
-  }, [scale, pdf]);
+  }, [scale, pdf, sizes]);
 
   useEffect(() => {
     if (!pdf) return;
@@ -306,7 +325,11 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).closest?.('input, textarea, select, dialog')) return;
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === 'z') {
+      if (mod && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setSidebar('search');
+        setFocusToken((t) => t + 1);
+      } else if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         void (e.shiftKey ? redo() : undo());
       } else if (mod && e.key.toLowerCase() === 'y') {
@@ -344,6 +367,40 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
       el.classList.add('flash');
     });
   }, []);
+
+  // ?h=<id>: venimos del repaso o de la búsqueda y hay que ir a ese subrayado.
+  const pendingJump = useRef(new URLSearchParams(location.search).get('h'));
+  useEffect(() => {
+    const id = pendingJump.current;
+    if (!id || !pdf || !sizes.length) return;
+    const h = highlights.find((x) => x.id === id);
+    if (!h) return;
+    pendingJump.current = null;
+    window.history.replaceState(null, '', location.pathname);
+    setTimeout(() => jumpTo(h), 150);
+  });
+
+  const scrollToRect = (r: Rect) => {
+    const el = pageEls()[r.p - 1];
+    const v = viewerRef.current;
+    if (!el || !v) return;
+    v.scrollTo({ top: el.offsetTop + r.y * el.offsetHeight - v.clientHeight * 0.3, behavior: 'smooth' });
+  };
+
+  const onHits = (hits: SearchHit[], current: number) => {
+    setSearch({ hits, current });
+    if (hits[current]) scrollToRect(hits[current].rect);
+  };
+
+  const marksByPage = useMemo(() => {
+    const map = new Map<number, PageMark[]>();
+    search.hits.forEach((h, i) => {
+      const list = map.get(h.page) ?? [];
+      list.push({ key: String(h.id), current: i === search.current, ...h.rect });
+      map.set(h.page, list);
+    });
+    return map;
+  }, [search]);
 
   const jumpTo = (h: Highlight) => {
     const r = h.rects[0];
@@ -421,6 +478,23 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
             <span className="name">{doc.name}</span>
             {folderName && <span className="subject">{folderName}</span>}
           </div>
+          <button
+            className={`icon-btn sm ${sidebar === 'outline' ? 'active' : ''}`}
+            onClick={() => setSidebar(sidebar === 'outline' ? null : 'outline')}
+            title="Índice"
+          >
+            <Icon name="list" size={16} />
+          </button>
+          <button
+            className={`icon-btn sm ${sidebar === 'search' ? 'active' : ''}`}
+            onClick={() => {
+              setSidebar(sidebar === 'search' ? null : 'search');
+              setFocusToken((t) => t + 1);
+            }}
+            title="Buscar (⌘F)"
+          >
+            <Icon name="search" size={16} />
+          </button>
         </div>
 
         <div className="bar-center">
@@ -509,6 +583,21 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
       </header>
 
       <div className="reader-body">
+        {sidebar && pdf && (
+          <ReaderSidebar
+            pdf={pdf}
+            tab={sidebar}
+            onTab={setSidebar}
+            page={page}
+            onGoPage={(n) => goTo(n, true)}
+            onHits={onHits}
+            onClose={() => {
+              setSidebar(null);
+              setSearch({ hits: [], current: 0 });
+            }}
+            focusToken={focusToken}
+          />
+        )}
       <div
         className="viewer"
         ref={(el) => {
@@ -539,6 +628,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
                 scale={scale}
                 root={viewer}
                 rects={rectsByPage.get(i + 1) ?? EMPTY}
+                marks={marksByPage.get(i + 1) ?? NO_MARKS}
               />
             ))}
           </div>
@@ -598,3 +688,4 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
 }
 
 const EMPTY: PageRect[] = [];
+const NO_MARKS: PageMark[] = [];

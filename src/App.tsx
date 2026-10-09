@@ -1,10 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
+import { Evaluations } from './components/Evaluations';
 import { Landing } from './components/Landing';
 import { Library, type FolderView } from './components/Library';
+import { Login } from './components/Login';
 import { BreakOverlay } from './components/Pomodoro';
 import { Reader } from './components/Reader';
+import { Review } from './components/Review';
 import { toast, Toaster } from './components/Toast';
+import { useFaviconProgress } from './hooks/useFaviconProgress';
 import { usePomodoro } from './hooks/usePomodoro';
 import { DEFAULT_LABELS, type Labels } from './lib/colors';
 import { db, sortHighlights } from './lib/db';
@@ -17,7 +21,17 @@ const prefersDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').ma
 export function App() {
   const path = useLocation().split('#')[0];
   const readerId = path.match(/^\/apuntes\/([^/]+)\/?$/)?.[1] ?? null;
-  const route = readerId ? 'reader' : path.startsWith('/apuntes') ? 'library' : 'landing';
+  const route = readerId
+    ? 'reader'
+    : path.startsWith('/apuntes')
+      ? 'library'
+      : path.startsWith('/parciales')
+      ? 'evals'
+      : path.startsWith('/repaso')
+        ? 'review'
+        : path.startsWith('/entrar')
+          ? 'login'
+          : 'landing';
 
   const loadedDocs = useLiveQuery(() => db.docs.toArray());
   const docs = loadedDocs ?? [];
@@ -39,6 +53,7 @@ export function App() {
   const [labels, setLabels] = useLocalState<Labels>('apuntes.labels', DEFAULT_LABELS);
   const [theme, setTheme] = useLocalState<'light' | 'dark'>('apuntes.theme', prefersDark() ? 'dark' : 'light');
   const pomo = usePomodoro();
+  useFaviconProgress(pomo);
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -52,7 +67,7 @@ export function App() {
   }, [readerId, loadedDocs, doc]);
 
   useEffect(() => {
-    if (route === 'library') window.scrollTo(0, 0);
+    if (route === 'library' || route === 'review' || route === 'evals') window.scrollTo(0, 0);
   }, [route]);
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -137,7 +152,18 @@ export function App() {
         )
       ) : (
         <>
-          {route === 'library' ? (
+          {route === 'evals' ? (
+            <Evaluations
+              evalId={path.match(/^\/parciales\/([^/]+)/)?.[1] ?? null}
+              docs={docs}
+              folders={folders ?? []}
+              onOpenDoc={open}
+            />
+          ) : route === 'login' ? (
+            <Login />
+          ) : route === 'review' ? (
+            <Review docs={docs} folders={folders ?? []} labels={labels} />
+          ) : route === 'library' ? (
             <Library
               docs={docs}
               folders={folders ?? []}

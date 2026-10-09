@@ -22,6 +22,13 @@ Abrí http://localhost:5173.
 - **Deshacer**: `⌘Z` / `⌘⇧Z` (o los botones de la barra) para subrayados, colores, notas y borrados.
 - Clic sobre un subrayado para cambiarle el color, agregar una nota o borrarlo.
 - **Sonidos para leer** (auriculares en la barra de lectura): ventilador, avión, gotas y ruido blanco. Se generan en el momento (sin archivos ni internet), se pueden mezclar con volumen propio y bajan solos durante las pausas del pomodoro.
+- **Repaso** (`/repaso`): tus subrayados como tarjetas con repaso espaciado. Primero las "Duda"; las que sabés vuelven en 1, 3, 7, 16 y 35 días.
+- **Parciales y TPs** (`/parciales`): fecha, materia, notas tipo checklist y los apuntes que entran. Te dice cuánto falta leer, a qué ritmo y qué repasar.
+- **Buscar e índice** en el lector (`⌘F`): sin distinguir acentos ni mayúsculas, aunque la página no esté dibujada.
+- **Meta diaria** en el resumen, y el tomate de la pestaña se llena con el pomodoro.
+- **Copia de seguridad**: un .zip con PDFs, subrayados, notas, estadísticas y ajustes (botón de archivo en la biblioteca).
+- **Instalable** como app (PWA) y funciona sin internet.
+- **Cuenta** (`/entrar`): login sin contraseña con link por mail. Sin cuenta todo funciona igual, guardado solo en este navegador.
 - **Exportar**: desde el panel de subrayados, a Markdown, al portapapeles o a un resumen para imprimir o guardar como PDF.
 
 ## Subrayados dentro del PDF
@@ -33,9 +40,11 @@ Abrí http://localhost:5173.
 
 Si subís un PDF que ya tiene resaltados (por ejemplo, hechos en el celu), la app los importa.
 
-## Datos
+## Datos y cuenta
 
-Todo queda en el navegador (IndexedDB). No hay servidor. Si borrás los datos del sitio, se pierden los subrayados que no hayas guardado en el PDF.
+Sin cuenta, todo queda en el navegador (IndexedDB). Con cuenta, se sincroniza con Supabase.
+
+Para la nube hace falta un `.env.local` (ver `.env.example`) con la URL y la clave **publicable** del proyecto de Supabase. Sin esas variables la app funciona solo local, sin login.
 
 ## Publicarla
 
