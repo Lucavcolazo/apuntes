@@ -16,7 +16,9 @@ import { Link, navigate } from '../lib/router';
 import { pagesRead, progressOf } from '../lib/stats';
 import { AccountButton } from './Account';
 import { Icon } from './Icon';
+import { EvalCalendar } from './EvalCalendar';
 import { SectionTabs } from './SectionTabs';
+import { useLocalState } from '../lib/storage';
 import { toast } from './Toast';
 
 interface Props {
@@ -33,6 +35,9 @@ export function Evaluations({ evalId, docs, folders, onOpenDoc }: Props) {
   const evaluations = useLiveQuery(() => db.evaluations.toArray());
   const highlights = useLiveQuery(() => db.highlights.toArray(), [], []);
   const current = evalId ? evaluations?.find((e) => e.id === evalId) : null;
+  const [savedView, setView] = useLocalState<'list' | 'calendar'>('apuntes.evalView', 'list');
+  // ?vista=calendario (desde la entrada) abre directo el calendario.
+  const view = new URLSearchParams(location.search).get('vista') === 'calendario' ? 'calendar' : savedView;
 
   // Un link a un parcial borrado vuelve a la lista.
   useEffect(() => {
@@ -84,7 +89,29 @@ export function Evaluations({ evalId, docs, folders, onOpenDoc }: Props) {
           <span className="muted">Le ponés fecha, vas dejando notas y conectás los apuntes que entran.</span>
         </button>
       ) : (
-        <EvaluationList evaluations={evaluations} folderName={folderName} docs={docs} highlights={highlights} />
+        <>
+          <div className="mode-tabs view-toggle" role="tablist" aria-label="Vista">
+            {(['list', 'calendar'] as const).map((v) => (
+              <button
+                key={v}
+                role="tab"
+                aria-selected={view === v}
+                className={view === v ? 'active' : ''}
+                onClick={() => {
+                  setView(v);
+                  if (location.search) navigate('/parciales', { replace: true });
+                }}
+              >
+                {v === 'list' ? 'Lista' : 'Calendario'}
+              </button>
+            ))}
+          </div>
+          {view === 'calendar' ? (
+            <EvalCalendar evaluations={evaluations} folders={folders} />
+          ) : (
+            <EvaluationList evaluations={evaluations} folderName={folderName} docs={docs} highlights={highlights} />
+          )}
+        </>
       )}
     </div>
   );

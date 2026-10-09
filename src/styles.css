@@ -3764,3 +3764,379 @@ a.btn {
   background: rgb(26 24 21 / 0.8);
   color: #f3eee3;
 }
+
+/* --- Mapa de calor de lectura ------------------------------------------------- */
+:root {
+  /* Una sola escala (tomate), de clara a oscura, mezclada con la superficie de cada tema. */
+  --heat-0: var(--surface-2);
+  --heat-1: color-mix(in srgb, var(--tomato) 28%, var(--surface));
+  --heat-2: color-mix(in srgb, var(--tomato) 50%, var(--surface));
+  --heat-3: color-mix(in srgb, var(--tomato) 75%, var(--surface));
+  --heat-4: var(--tomato);
+}
+.heat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.heat-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.heat-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.heatmap {
+  margin: 0;
+  min-width: 0;
+}
+.heat-grid {
+  position: relative;
+  display: grid;
+  grid-auto-rows: 13px;
+  justify-content: start;
+}
+.heat-month,
+.heat-day {
+  font-size: 10px;
+  line-height: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.heat-month {
+  overflow: visible;
+}
+.heat-cell {
+  display: block;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: var(--heat-0);
+}
+.heat-cell.l1 {
+  background: var(--heat-1);
+}
+.heat-cell.l2 {
+  background: var(--heat-2);
+}
+.heat-cell.l3 {
+  background: var(--heat-3);
+}
+.heat-cell.l4 {
+  background: var(--heat-4);
+}
+.heat-cell.future {
+  background: transparent;
+}
+.heat-cell.today {
+  box-shadow: 0 0 0 1.5px var(--ink-2);
+}
+.heat-grid .heat-cell:not(.future):hover {
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+.heat-tooltip {
+  transform: translate(-50%, calc(-100% - 6px));
+  bottom: auto;
+}
+.heat-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 11.5px;
+}
+.heat-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.heat-legend .heat-cell {
+  width: 11px;
+  height: 11px;
+}
+.heat-legend .heat-cell:first-of-type {
+  margin-left: 4px;
+}
+.heat-legend .heat-cell:last-of-type {
+  margin-right: 4px;
+}
+
+/* --- Checklist "Lo que viene" ------------------------------------------------- */
+.checklist-card {
+  min-width: 0;
+}
+.row-actions {
+  display: flex;
+  gap: 4px;
+}
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.checklist li {
+  display: grid;
+  grid-template-columns: auto 40px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--line);
+  transition: opacity 0.3s;
+}
+.checklist li:last-child {
+  border-bottom: 0;
+}
+.checklist input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--tomato);
+  cursor: pointer;
+}
+.check-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  padding: 5px 0;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.check-day {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.check-month {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.checklist li.urgent .check-date {
+  background: var(--tomato);
+  color: #fff;
+}
+.checklist li.urgent .check-month {
+  color: rgb(255 255 255 / 0.8);
+}
+.checklist li.late .check-meta {
+  color: var(--danger);
+}
+.check-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.check-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.check-top strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.check-body:hover strong {
+  text-decoration: underline;
+}
+.check-meta {
+  font-size: 12px;
+}
+.checklist li.done {
+  opacity: 0.5;
+}
+.checklist li.done strong {
+  text-decoration: line-through;
+}
+
+/* --- Calendario de parciales -------------------------------------------------- */
+.view-toggle {
+  display: inline-flex;
+  margin-bottom: 18px;
+}
+.calendar {
+  max-width: 980px;
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.cal-head h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.cal-count {
+  font-size: 12px;
+}
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.cal-nav .icon-btn {
+  font-size: 20px;
+  line-height: 1;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--line);
+  gap: 1px;
+}
+.cal-weekday {
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  background: var(--surface);
+}
+.cal-day {
+  min-height: 104px;
+  padding: 8px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.cal-day:hover:not(.past) {
+  background: color-mix(in srgb, var(--surface) 85%, var(--ink) 5%);
+}
+.cal-day.past {
+  cursor: default;
+}
+.cal-day.outside {
+  background: var(--bg);
+}
+.cal-day.outside .cal-num {
+  opacity: 0.4;
+}
+.cal-num {
+  align-self: flex-start;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 24px;
+  text-align: center;
+  color: var(--ink-2);
+}
+.cal-day.past .cal-num {
+  color: var(--muted);
+}
+.cal-day.today .cal-num {
+  background: var(--tomato);
+  color: #fff;
+}
+.cal-events {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.cal-event {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--surface-2);
+  color: var(--ink);
+  border-left: 3px solid currentColor;
+  min-width: 0;
+}
+.cal-event span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.cal-event.kind-parcial {
+  color: var(--tomato);
+  background: color-mix(in srgb, var(--tomato) 12%, var(--surface));
+}
+.cal-event.kind-tp {
+  color: #4f9ce0;
+  background: color-mix(in srgb, #4f9ce0 12%, var(--surface));
+}
+.cal-event.kind-final {
+  color: #9c76e0;
+  background: color-mix(in srgb, #9c76e0 12%, var(--surface));
+}
+.cal-event.done {
+  opacity: 0.5;
+}
+.cal-event.done span {
+  text-decoration: line-through;
+}
+.cal-event:hover span {
+  text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+  .cal-day {
+    min-height: 64px;
+    padding: 4px;
+  }
+  .cal-event {
+    padding: 0;
+    width: 8px;
+    height: 8px;
+    border: 0;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .cal-event span,
+  .cal-event svg {
+    display: none;
+  }
+  .cal-events {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .checklist li {
+    grid-template-columns: auto 40px 1fr;
+  }
+  .checklist li > .btn {
+    display: none;
+  }
+}
+.dash-grid .continue-card {
+  grid-column: auto;
+}
+.goal-tile .tile-value {
+  font-size: 21px;
+  white-space: nowrap;
+}

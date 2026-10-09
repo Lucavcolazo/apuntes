@@ -1,14 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDuration } from '../lib/dates';
-import { EVAL_KINDS } from '../lib/db';
-import { evalStatus, sortEvaluations } from '../lib/evaluations';
 import { db, type Doc, type Folder } from '../lib/db';
 import { Link, navigate } from '../lib/router';
 import { reviewQueue } from '../lib/review';
 import { useLocalState } from '../lib/storage';
-import { computeStats, type DayStat } from '../lib/stats';
+import { computeStats } from '../lib/stats';
 import { AccountButton, GuestBanner } from './Account';
+import { EvalChecklist } from './EvalChecklist';
+import { Heatmap } from './Heatmap';
 import { Icon } from './Icon';
 import { Splat } from './Splat';
 
@@ -69,7 +69,7 @@ export function Landing({ docs, folders, theme, onToggleTheme, onOpen }: Props) 
               <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
             </button>
             <Link to="/apuntes" className="btn ghost">
-              Mis apuntes
+              Mi espacio
             </Link>
             <AccountButton />
           </div>
@@ -117,10 +117,16 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
   const live = highlights.filter((h) => docFolder.has(h.docId));
   const due = reviewQueue(live);
 
-  // Lo que viene: parciales y TPs pendientes con cuánto falta leer y a qué ritmo.
-  const exams = sortEvaluations(evaluations)
-    .upcoming.slice(0, 4)
-    .map((ev) => ({ ev, ...evalStatus(ev, docs, live) }));
+  const byDay = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of reading) map.set(r.date, (map.get(r.date) ?? 0) + r.ms);
+    return map;
+  }, [reading]);
+  const pomodorosByDay = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of pomodoros) map.set(p.date, (map.get(p.date) ?? 0) + 1);
+    return map;
+  }, [pomodoros]);
 
   const delta =
     stats.prevWeekMs > 0 ? Math.round(((stats.weekMs - stats.prevWeekMs) / stats.prevWeekMs) * 100) : null;
@@ -134,26 +140,32 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
           <p className="muted">{today}</p>
         </div>
         <Link to="/apuntes" className="btn primary">
-          Ir a mis apuntes <span aria-hidden="true">→</span>
+          Ir a mi espacio <span aria-hidden="true">→</span>
         </Link>
       </header>
 
       <GuestBanner />
 
       <div className="dash-grid">
-        <article className="card week-card">
-          <div className="hero-figure">
-            <span className="stat-label">Leíste esta semana</span>
-            <span className="hero-number">{formatDuration(stats.weekMs)}</span>
-            <span className="stat-delta muted">
-              {delta === null
-                ? stats.weekMs
-                  ? 'Primera semana registrada'
-                  : 'Abrí un libro y el tiempo se cuenta solo'
-                : `${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)}% vs. los 7 días anteriores`}
-            </span>
+        <article className="card heat-card">
+          <div className="heat-head">
+            <div className="hero-figure">
+              <span className="stat-label">Esta semana</span>
+              <span className="hero-number">{formatDuration(stats.weekMs)}</span>
+              <span className="stat-delta muted">
+                {delta === null
+                  ? stats.weekMs
+                    ? 'Primera semana registrada'
+                    : 'Abrí un libro y el tiempo se cuenta solo'
+                  : `${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)}% vs. los 7 días anteriores`}
+              </span>
+            </div>
+            <div className="heat-total">
+              <span className="stat-label">En total</span>
+              <span className="tile-value">{formatDuration(stats.totalMs)}</span>
+            </div>
           </div>
-          <WeekChart days={stats.week} />
+          <Heatmap byDay={byDay} pomodorosByDay={pomodorosByDay} />
         </article>
 
         <div className="tiles">
@@ -173,46 +185,7 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
           </Link>
         </div>
 
-        {exams.length > 0 && (
-          <article className="card exams-card">
-            <div className="card-title-row">
-              <h3>Lo que viene</h3>
-              <Link to="/parciales" className="btn ghost sm">
-                Ver todo
-              </Link>
-            </div>
-            <ul className="exam-list">
-              {exams.map((e) => (
-                <li key={e.ev.id} className={e.days <= 7 ? 'soon' : ''}>
-                  <div className="exam-when">
-                    <span className="exam-days tabular">{e.days === 0 ? '¡Hoy!' : e.days}</span>
-                    {e.days > 0 && <span className="muted">{e.days === 1 ? 'día' : 'días'}</span>}
-                  </div>
-                  <div className="exam-body">
-                    <Link to={`/parciales/${e.ev.id}`} className="exam-title">
-                      <span className={`kind kind-${e.ev.kind}`}>{EVAL_KINDS[e.ev.kind]}</span>
-                      <strong>{e.ev.title || 'Sin título'}</strong>
-                    </Link>
-                    <span className="muted">
-                      {!e.docs.length
-                        ? 'Sin apuntes conectados'
-                        : e.pagesLeft
-                          ? `Te faltan ${e.pagesLeft} páginas: unas ${e.perDay} por día`
-                          : 'Ya leíste todo: a repasar'}
-                      {e.due > 0 && ` · ${e.due} para repasar`}
-                      {e.notesOpen > 0 && ` · ${e.notesOpen} ${e.notesOpen === 1 ? 'nota pendiente' : 'notas pendientes'}`}
-                    </span>
-                  </div>
-                  {e.due > 0 && (
-                    <Link to={`/repaso?parcial=${e.ev.id}`} className="btn ghost sm">
-                      Repasar
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </article>
-        )}
+        <EvalChecklist evaluations={evaluations} docs={docs} folders={folders} highlights={live} />
 
         <article className="card continue-card">
           <h3>Seguí leyendo</h3>
@@ -227,7 +200,7 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
             </div>
           ) : (
             <ul className="progress-list">
-              {stats.inProgress.slice(0, 5).map(({ doc, pct, ms }) => (
+              {stats.inProgress.slice(0, 4).map(({ doc, pct, ms }) => (
                 <li key={doc.id}>
                   <button className="progress-row" onClick={() => onOpen(doc.id)}>
                     <span className="mini-cover">{doc.thumb && <img src={doc.thumb} alt="" />}</span>
@@ -235,7 +208,7 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
                       <span className="progress-title">{doc.name}</span>
                       <span className="muted progress-meta">
                         {doc.folderId ? `${folderName.get(doc.folderId) ?? ''} · ` : ''}
-                        {formatDuration(ms)} leídos · p. {doc.maxPage ?? doc.lastPage}/{doc.pages}
+                        {formatDuration(ms)} leídos
                       </span>
                       <span className="meter" role="meter" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${pct}% leído`}>
                         <span style={{ width: `${pct}%` }} />
@@ -247,26 +220,6 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
               ))}
             </ul>
           )}
-        </article>
-
-        <article className="card folder-card">
-          <h3>Tiempo por carpeta</h3>
-          {stats.byFolder.length === 0 ? (
-            <p className="muted card-empty">Sin lecturas todavía.</p>
-          ) : (
-            <ul className="bar-list">
-              {stats.byFolder.slice(0, 6).map((f) => (
-                <li key={f.name}>
-                  <span className="bar-name">{f.name}</span>
-                  <span className="bar-track">
-                    <span style={{ width: `${(f.ms / stats.byFolder[0].ms) * 100}%` }} />
-                  </span>
-                  <span className="bar-value tabular">{formatDuration(f.ms)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="muted total-line">En total: {formatDuration(stats.totalMs)} de lectura</p>
         </article>
       </div>
     </>
@@ -280,85 +233,6 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
       <span className="tile-value">{value}</span>
       {hint && <span className="muted tile-hint">{hint}</span>}
     </div>
-  );
-}
-
-// Topes "redondos" cuya mitad también es entera (sin "7.5" en el eje).
-const STEPS = [10, 20, 30, 60, 90, 120, 180, 240, 360, 480, 720];
-
-/** Minutos leídos en los últimos 7 días. Una sola serie: sin leyenda, el título la nombra. */
-function WeekChart({ days }: { days: DayStat[] }) {
-  const [hover, setHover] = useState<number | null>(null);
-  const mins = days.map((d) => d.ms / 60_000);
-  const max = STEPS.find((s) => s >= Math.max(...mins)) ?? Math.ceil(Math.max(...mins) / 60) * 60;
-  const ticks = [0, max / 2, max];
-  const empty = mins.every((m) => m < 1);
-  const peak = mins.indexOf(Math.max(...mins));
-
-  return (
-    <figure className="week-chart">
-      <figcaption className="stat-label">Minutos por día</figcaption>
-      <div className="chart-area">
-        <div className="y-axis" aria-hidden="true">
-          {ticks.map((t) => (
-            <span key={t} style={{ bottom: `${(t / max) * 100}%` }}>
-              {t}
-            </span>
-          ))}
-        </div>
-        <div className="plot">
-          {ticks.map((t) => (
-            <span key={t} className="gridline" style={{ bottom: `${(t / max) * 100}%` }} aria-hidden="true" />
-          ))}
-          {empty && <span className="plot-empty muted">Sin lecturas en los últimos 7 días</span>}
-          {days.map((d, i) => {
-            const h = (mins[i] / max) * 100;
-            const showLabel = !empty && (d.isToday || i === peak) && mins[i] >= 1;
-            return (
-              <button
-                key={d.date}
-                className={`col ${hover === i ? 'hover' : ''}`}
-                onMouseEnter={() => setHover(i)}
-                onMouseLeave={() => setHover(null)}
-                onFocus={() => setHover(i)}
-                onBlur={() => setHover(null)}
-                aria-label={`${d.long}: ${formatDuration(d.ms)}`}
-              >
-                {mins[i] >= 0.5 && (
-                  <span className="bar" style={{ height: `max(${h}%, 3px)` }}>
-                    {showLabel && <span className="bar-cap tabular">{Math.round(mins[i])}</span>}
-                  </span>
-                )}
-                {hover === i && (
-                  <span className="tooltip" role="tooltip">
-                    <strong>{formatDuration(d.ms)}</strong>
-                    <span>{d.long}</span>
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div className="x-axis" aria-hidden="true">
-        {days.map((d) => (
-          <span key={d.date} className={d.isToday ? 'today' : ''}>
-            {d.isToday ? 'hoy' : d.label}
-          </span>
-        ))}
-      </div>
-      <table className="sr-only">
-        <caption>Minutos de lectura por día</caption>
-        <tbody>
-          {days.map((d, i) => (
-            <tr key={d.date}>
-              <th scope="row">{d.long}</th>
-              <td>{Math.round(mins[i])} min</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </figure>
   );
 }
 
