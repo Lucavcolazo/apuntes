@@ -4,11 +4,18 @@ import type { Pomodoro } from '../hooks/usePomodoro';
 import { useReadingTracker } from '../hooks/useReadingTracker';
 import { COLOR_KEYS, COLORS, type Labels } from '../lib/colors';
 import { db, uid, type ColorKey, type Doc, type Highlight } from '../lib/db';
-import { autoSaveToOriginal, canSaveToOriginal, savePdf } from '../lib/files';
+import {
+  autoSaveToOriginal,
+  enableOriginalSave,
+  linkOriginal,
+  originalStatus,
+  savePdf,
+  type OriginalStatus,
+} from '../lib/files';
 import { cleanText, selectionRects } from '../lib/geometry';
 import { downloadDocFile } from '../lib/sync';
 import { loadPdf, type PDFDocumentProxy } from '../lib/pdf';
-import { useLocalState } from '../lib/storage';
+import { lsGet, lsSet, useLocalState } from '../lib/storage';
 import { HighlightPopover } from './HighlightPopover';
 import { HighlightsPanel } from './HighlightsPanel';
 import { Icon } from './Icon';
@@ -34,6 +41,9 @@ interface Props {
 type Tone = 'paper' | 'cream' | 'night';
 const TONES: Record<Tone, string> = { paper: 'Papel', cream: 'Crema', night: 'Noche' };
 const NEXT_TONE: Record<Tone, Tone> = { paper: 'cream', cream: 'night', night: 'paper' };
+
+/** Cuánto esperar después del último subrayado para escribir el PDF original. */
+const AUTOSAVE_MS = 10_000;
 
 const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
@@ -444,24 +454,93 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
   // --- Guardar los subrayados dentro del PDF ----------------------------------
   const unsaved = (doc.changedAt ?? 0) > (doc.savedAt ?? 0);
 
+  const [original, setOriginal] = useState<OriginalStatus | null>(null);
+  const refreshOriginal = useCallback(() => void originalStatus(doc.id).then(setOriginal), [doc.id]);
+  useEffect(refreshOriginal, [refreshOriginal]);
+
+  // Brave y otros no dejan escribir en tus archivos: se avisa una sola vez cómo activarlo.
+  useEffect(() => {
+    if (original !== 'unsupported' || lsGet('apuntes.fsHintShown', false)) return;
+    lsSet('apuntes.fsHintShown', true);
+    toast(
+      /brave/i.test(navigator.userAgent) || 'brave' in navigator
+        ? 'Para guardar en tu PDF original, activá "File System Access API" en brave://flags (o usá Chrome)'
+        : 'Este navegador no deja guardar en el PDF original: podés descargar una copia con los subrayados',
+    );
+  }, [original]);
+
+  /** Botón principal: lo que haga falta según el estado del archivo. */
   const save = async () => {
     setSaving(true);
     try {
-      const where = await savePdf(doc);
-      toast(where === 'original' ? 'Subrayados guardados en tu PDF' : 'Descargaste el PDF con los subrayados');
+      if (original === 'unlinked') {
+        if (await linkOriginal(doc)) toast('Listo: tus subrayados se guardan solos en ese PDF');
+      } else if (original === 'needs-permission') {
+        if (await enableOriginalSave(doc)) toast('Guardado automático activado');
+      } else if (original === 'ready') {
+        await autoSaveToOriginal(doc);
+      } else {
+        await savePdf(doc);
+        toast('Descargaste el PDF con los subrayados');
+      }
     } catch {
       toast('No se pudo guardar el PDF');
     } finally {
       setSaving(false);
+      refreshOriginal();
     }
   };
 
-  // Si ya diste permiso sobre el archivo original, se guarda solo a los pocos segundos.
+  // Lo último del libro, para los guardados que corren fuera del render.
+  const latest = useRef({ doc, unsaved, original });
+  latest.current = { doc, unsaved, original };
+
+  // Guardado automático: ~10 s después del último subrayado (cambiar de página no lo demora)…
   useEffect(() => {
-    if (!unsaved) return;
-    const t = setTimeout(() => void autoSaveToOriginal(doc).catch(() => {}), 2000);
+    if (!unsaved || original !== 'ready') return;
+    const t = setTimeout(
+      () => void autoSaveToOriginal(latest.current.doc).catch(() => setOriginal('needs-permission')),
+      AUTOSAVE_MS,
+    );
     return () => clearTimeout(t);
-  }, [doc.changedAt]);
+  }, [doc.changedAt, unsaved, original]);
+
+  // …y al salir del libro, cambiar de pestaña o cerrarla, para no perder lo último.
+  useEffect(() => {
+    const flush = () => {
+      const { doc: d, unsaved: u, original: o } = latest.current;
+      if (u && o === 'ready') void autoSaveToOriginal(d).catch(() => {});
+    };
+    const onHide = () => document.visibilityState === 'hidden' && flush();
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, []);
+
+  const saveLabel = saving
+    ? 'Guardando…'
+    : original === 'unlinked'
+      ? 'Conectar archivo'
+      : original === 'needs-permission'
+        ? 'Activar guardado'
+        : original === 'unsupported'
+          ? 'Descargar PDF'
+          : unsaved
+            ? 'Se guarda solo'
+            : 'Guardado';
+  const saveTitle =
+    original === 'unlinked'
+      ? 'Elegí el PDF de tu compu y tus subrayados se van a guardar solos ahí'
+      : original === 'needs-permission'
+        ? 'El navegador pide permiso una vez por sesión para escribir en tu archivo'
+        : original === 'unsupported'
+          ? 'Este navegador no deja escribir en tus archivos: descarga una copia con los subrayados'
+          : 'Tus subrayados se escriben solos en tu PDF unos segundos después de cada cambio';
+  const needsAction = original === 'unlinked' || original === 'needs-permission' || (original === 'unsupported' && unsaved);
 
   // --- Modo inmersivo: la barra se esconde si no movés el mouse ----------------
   useEffect(() => {
@@ -590,17 +669,13 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
         <div className="bar-right">
           <button
             data-wide-only
-            className={`btn sm save-btn ${unsaved ? 'unsaved' : ''}`}
+            className={`btn sm save-btn ${needsAction ? 'unsaved' : ''}`}
             onClick={save}
             disabled={saving}
-            title={
-              canSaveToOriginal
-                ? 'Escribe los subrayados dentro del archivo PDF'
-                : 'Descarga el PDF con los subrayados adentro (se ven en Libros, Vista Previa, el celu…)'
-            }
+            title={saveTitle}
           >
-            <Icon name="save" size={15} />
-            {saving ? 'Guardando…' : unsaved ? 'Guardar en PDF' : 'Guardado'}
+            <Icon name={original === 'unsupported' ? 'download' : 'save'} size={15} />
+            {saveLabel}
           </button>
           <Sounds paused={onBreak} />
           <MiniTomato pomo={pomo} />
@@ -623,7 +698,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
               aria-expanded={moreOpen}
             >
               <Icon name="more" />
-              {unsaved && <span className="badge dot" />}
+              {needsAction && <span className="badge dot" />}
             </button>
             {moreOpen && (
               <div className="menu more-menu" role="menu" onClick={() => setMoreOpen(false)}>
@@ -662,8 +737,8 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
                     <Icon name="redo" size={16} />
                   </button>
                 </div>
-                <button role="menuitem" onClick={save} disabled={saving}>
-                  <Icon name="save" size={16} /> {unsaved ? 'Guardar subrayados en el PDF' : 'Guardado en el PDF'}
+                <button role="menuitem" onClick={save} disabled={saving} title={saveTitle}>
+                  <Icon name={original === 'unsupported' ? 'download' : 'save'} size={16} /> {saveLabel}
                 </button>
               </div>
             )}

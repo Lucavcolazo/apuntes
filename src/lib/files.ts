@@ -161,16 +161,74 @@ export async function savePdf(doc: Doc): Promise<'original' | 'download'> {
   return 'download';
 }
 
+/** En qué situación está un libro respecto a su archivo original en la compu. */
+export type OriginalStatus = 'unsupported' | 'unlinked' | 'needs-permission' | 'ready';
+
+export async function originalStatus(docId: string): Promise<OriginalStatus> {
+  if (!canSaveToOriginal) return 'unsupported';
+  const stored = await db.files.get(docId);
+  if (!stored?.handle) return 'unlinked';
+  try {
+    const perm = await stored.handle.queryPermission?.({ mode: 'readwrite' });
+    return perm === 'granted' ? 'ready' : 'needs-permission';
+  } catch {
+    return 'needs-permission';
+  }
+}
+
+// Un guardado a la vez por libro: si llegan cambios mientras se escribe, se guarda otra vez al terminar.
+const inflight = new Map<string, Promise<boolean>>();
+const again = new Set<string>();
+
 /**
- * Guardado automático en el archivo original, solo si ya nos dieron permiso
- * en esta sesión (pedirlo requiere un clic del usuario).
+ * Escribe los subrayados en el archivo original, sin pedir nada.
+ * Solo funciona si el libro está conectado y ya hay permiso (pedirlo requiere un clic).
  */
-export async function autoSaveToOriginal(doc: Doc) {
+export function autoSaveToOriginal(doc: Doc): Promise<boolean> {
+  const running = inflight.get(doc.id);
+  if (running) {
+    again.add(doc.id);
+    return running;
+  }
+  const task = (async () => {
+    if ((await originalStatus(doc.id)) !== 'ready') return false;
+    const savedAt = Date.now();
+    const { bytes, handle } = await annotatedBytes(doc);
+    await writeToHandle(handle!, bytes);
+    await db.docs.update(doc.id, { savedAt });
+    return true;
+  })().finally(() => {
+    inflight.delete(doc.id);
+    if (again.delete(doc.id)) void db.docs.get(doc.id).then((d) => d && autoSaveToOriginal(d));
+  });
+  inflight.set(doc.id, task);
+  return task;
+}
+
+/** Pide permiso para escribir (necesita un clic) y guarda en el momento. */
+export async function enableOriginalSave(doc: Doc) {
   const stored = await db.files.get(doc.id);
-  if (!stored?.handle || (await stored.handle.queryPermission?.({ mode: 'readwrite' })) !== 'granted') return false;
-  const savedAt = Date.now();
-  const { bytes, handle } = await annotatedBytes(doc);
-  await writeToHandle(handle!, bytes);
-  await db.docs.update(doc.id, { savedAt });
-  return true;
+  if (!stored?.handle) return false;
+  const perm = await stored.handle.requestPermission?.({ mode: 'readwrite' });
+  if (perm !== 'granted') return false;
+  return autoSaveToOriginal(doc);
+}
+
+/**
+ * Une el libro con un archivo de la compu (por ejemplo, si vino de otro dispositivo).
+ * Desde ahí los subrayados se guardan en ese archivo.
+ */
+export async function linkOriginal(doc: Doc) {
+  if (!window.showOpenFilePicker) return false;
+  let handle: FileSystemFileHandle | undefined;
+  try {
+    [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }],
+    });
+  } catch {
+    return false; // canceló
+  }
+  if (!handle) return false;
+  await db.files.update(doc.id, { handle });
+  return enableOriginalSave(doc);
 }
