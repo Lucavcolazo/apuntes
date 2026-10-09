@@ -6,6 +6,7 @@ import { COLOR_KEYS, COLORS, type Labels } from '../lib/colors';
 import { db, uid, type ColorKey, type Doc, type Highlight } from '../lib/db';
 import { autoSaveToOriginal, canSaveToOriginal, savePdf } from '../lib/files';
 import { cleanText, selectionRects } from '../lib/geometry';
+import { downloadDocFile } from '../lib/sync';
 import { loadPdf, type PDFDocumentProxy } from '../lib/pdf';
 import { useLocalState } from '../lib/storage';
 import { HighlightPopover } from './HighlightPopover';
@@ -42,6 +43,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const [scale, setScale] = useState(1);
   const [page, setPage] = useState(doc.lastPage || 1);
   const pageRef = useRef(page);
@@ -72,9 +74,14 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
     let loaded: PDFDocumentProxy | undefined;
     (async () => {
       try {
-        const file = await db.files.get(doc.id);
-        if (!file) throw new Error('missing');
-        loaded = await loadPdf(file.blob);
+        let blob = (await db.files.get(doc.id))?.blob;
+        if (!blob) {
+          // Libro que vino de otro dispositivo: lo bajamos de la nube la primera vez.
+          setDownloading(true);
+          blob = await downloadDocFile(doc);
+          setDownloading(false);
+        }
+        loaded = await loadPdf(blob);
         if (!alive) return;
         // Abrimos ya con el tamaño de la primera página para todas (casi siempre son iguales)
         // y medimos el resto en segundo plano: un PDF de 300 páginas no tiene que esperar.
@@ -101,7 +108,16 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
           setSizes(dims);
         }
       } catch {
-        if (alive) setError('No se pudo abrir este PDF.');
+        if (!alive) return;
+        setDownloading(false);
+        const inCloudOnly = !(await db.files.get(doc.id));
+        setError(
+          !inCloudOnly
+            ? 'No se pudo abrir este PDF.'
+            : navigator.onLine
+              ? 'No se pudo bajar este PDF de la nube. Probá de nuevo en un rato.'
+              : 'Este libro está en la nube: conectate a internet para bajarlo la primera vez.',
+        );
       }
     })();
     return () => {
@@ -615,7 +631,9 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
         onMouseMove={onMouseMove}
       >
         {error && <div className="viewer-message">{error}</div>}
-        {!pdf && !error && <div className="viewer-message muted">Abriendo…</div>}
+        {!pdf && !error && (
+          <div className="viewer-message muted">{downloading ? 'Bajando el PDF de la nube…' : 'Abriendo…'}</div>
+        )}
         {pdf && (
           <div className="pages">
             {sizes.map((s, i) => (

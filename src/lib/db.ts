@@ -11,13 +11,19 @@ export interface Rect {
   h: number;
 }
 
-export interface Folder {
+/** Campos de sincronización: cuándo cambió y si falta subirlo a la nube. */
+export interface Synced {
+  updatedAt?: number;
+  dirty?: 0 | 1;
+}
+
+export interface Folder extends Synced {
   id: string;
   name: string;
   createdAt: number;
 }
 
-export interface Doc {
+export interface Doc extends Synced {
   id: string;
   name: string;
   folderId: string | null;
@@ -34,6 +40,10 @@ export interface Doc {
   /** Último cambio en los subrayados y última vez que se escribieron en el PDF. */
   changedAt?: number;
   savedAt?: number;
+  /** SHA-256 del PDF guardado: con esto se comparte un solo archivo en la nube entre todos. */
+  fileHash?: string;
+  /** Solo local: el archivo ya está en el storage de la nube. */
+  uploaded?: boolean;
 }
 
 /**
@@ -47,7 +57,7 @@ export interface StoredFile {
   handle?: FileSystemFileHandle;
 }
 
-export interface Highlight {
+export interface Highlight extends Synced {
   id: string;
   docId: string;
   color: ColorKey;
@@ -68,14 +78,14 @@ export interface Review {
 }
 
 /** Tiempo de lectura acumulado por libro y por día. id = `${docId}|${date}` */
-export interface ReadingDay {
+export interface ReadingDay extends Synced {
   id: string;
   docId: string;
   date: string;
   ms: number;
 }
 
-export interface PomodoroLog {
+export interface PomodoroLog extends Synced {
   id: string;
   date: string;
   at: number;
@@ -92,7 +102,7 @@ export interface EvalNote {
 }
 
 /** Un parcial, TP o final: fecha, notas y los apuntes que entran. */
-export interface Evaluation {
+export interface Evaluation extends Synced {
   id: string;
   kind: EvalKind;
   title: string;
@@ -105,7 +115,16 @@ export interface Evaluation {
   createdAt: number;
 }
 
+/** Borrados pendientes de avisar a la nube. */
+export interface Tombstone {
+  key: string;
+  table: string;
+  id: string;
+  at: number;
+}
+
 export const db = new Dexie('apuntes') as Dexie & {
+  tombstones: EntityTable<Tombstone, 'key'>;
   evaluations: EntityTable<Evaluation, 'id'>;
   reading: EntityTable<ReadingDay, 'id'>;
   pomodoros: EntityTable<PomodoroLog, 'id'>;
@@ -205,8 +224,41 @@ db.version(4)
       });
   });
 
+/** Identifica este navegador: los minutos leídos se guardan por dispositivo para que no se pisen. */
+export function deviceId() {
+  try {
+    let id = localStorage.getItem('apuntes.deviceId');
+    if (!id) localStorage.setItem('apuntes.deviceId', (id = uid().slice(0, 8)));
+    return id;
+  } catch {
+    return 'local';
+  }
+}
+
+// v5: sincronización. Índices de "pendiente de subir", registro de borrados, huella de cada PDF,
+// y los minutos leídos pasan a ser por dispositivo.
+db.version(5)
+  .stores({
+    folders: 'id, dirty',
+    docs: 'id, folderId, dirty, fileHash',
+    highlights: 'id, docId, dirty',
+    evaluations: 'id, date, folderId, dirty',
+    reading: 'id, docId, date, dirty',
+    pomodoros: 'id, date, dirty',
+    tombstones: 'key',
+  })
+  .upgrade(async (tx) => {
+    const device = deviceId();
+    const rows = await tx.table('reading').toArray();
+    for (const r of rows) {
+      if (r.id.split('|').length === 3) continue;
+      await tx.table('reading').delete(r.id);
+      await tx.table('reading').put({ ...r, id: `${r.docId}|${r.date}|${device}` });
+    }
+  });
+
 export async function addReading(docId: string, date: string, ms: number) {
-  const id = `${docId}|${date}`;
+  const id = `${docId}|${date}|${deviceId()}`;
   await db.transaction('rw', db.reading, async () => {
     const prev = await db.reading.get(id);
     await db.reading.put({ id, docId, date, ms: (prev?.ms ?? 0) + ms });

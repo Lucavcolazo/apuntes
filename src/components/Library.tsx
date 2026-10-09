@@ -346,6 +346,8 @@ function Book({
   onMove: (folderId: string | null) => void;
 }) {
   const count = useLiveQuery(() => db.highlights.where('docId').equals(doc.id).count(), [doc.id], 0);
+  // Libro que vino de otro dispositivo y todavía no se bajó a este.
+  const local = useLiveQuery(async () => !!(await db.files.get(doc.id)), [doc.id], true);
   const pct = doc.pages && doc.lastPage > 1 ? Math.round((doc.lastPage / doc.pages) * 100) : 0;
   const [menu, setMenu] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -374,7 +376,12 @@ function Book({
       <button className="cover" onClick={onOpen} title={`Leer ${doc.name}`}>
         {doc.thumb ? <img src={doc.thumb} alt="" draggable={false} /> : <span className="cover-fallback">{doc.name}</span>}
         <span className="cover-progress" style={{ width: `${pct}%` }} />
-        <span className="cover-cta">Leer</span>
+        <span className="cover-cta">{local ? 'Leer' : 'Bajar y leer'}</span>
+        {!local && (
+          <span className="cloud-badge" title="Está en tu nube; se baja al abrirlo">
+            <Icon name="download" size={12} />
+          </span>
+        )}
       </button>
       <div className="book-info">
         <h4 title={doc.name}>{doc.name}</h4>

@@ -112,7 +112,9 @@ function removeHighlightAnnots(doc: PDFDocument) {
 }
 
 export async function stripHighlights(bytes: ArrayBuffer) {
-  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  // Sin tocar la fecha de modificación: el mismo PDF tiene que dar siempre la misma huella
+  // (así dos compañeros que suben el mismo apunte comparten un solo archivo en la nube).
+  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
   removeHighlightAnnots(doc);
   return doc.save();
 }

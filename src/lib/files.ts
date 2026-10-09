@@ -78,15 +78,17 @@ export async function importPdfs(sources: Source[], folderId: string | null = nu
     }
 
     const thumb = await renderThumb(pdf).catch(() => undefined);
+    const fileHash = await sha256(blob);
     const now = Date.now();
     const doc: Doc = {
       id: uid(),
       name: file.name.replace(/\.pdf$/i, ''),
       folderId,
-      size: file.size,
+      size: blob.size,
       pages: pdf.numPages,
       lastPage: 1,
       maxPage: 0,
+      fileHash,
       scale: null,
       addedAt: now,
       openedAt: now,
@@ -116,6 +118,12 @@ async function writeToHandle(handle: FileSystemFileHandle, bytes: Uint8Array<Arr
   const writable = await handle.createWritable();
   await writable.write(bytes);
   await writable.close();
+}
+
+/** Huella SHA-256 en hexadecimal: identifica el archivo sin importar el nombre. */
+export async function sha256(blob: Blob) {
+  const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function renderThumb(pdf: PDFDocumentProxy) {
