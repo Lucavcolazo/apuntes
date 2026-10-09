@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useHighlightHistory } from '../hooks/useHighlightHistory';
 import type { Pomodoro } from '../hooks/usePomodoro';
+import { useReadingTracker } from '../hooks/useReadingTracker';
 import { COLOR_KEYS, COLORS, type Labels } from '../lib/colors';
 import { db, uid, type ColorKey, type Doc, type Highlight } from '../lib/db';
 import { autoSaveToOriginal, canSaveToOriginal, savePdf } from '../lib/files';
@@ -48,6 +49,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
   const [idle, setIdle] = useState(false);
   const [saving, setSaving] = useState(false);
   const history = useHighlightHistory(doc.id);
+  useReadingTracker(doc.id, pomo.overlay !== 'none' || (pomo.running && pomo.mode !== 'focus'));
   // Marcador fijo: con un color elegido, cada selección se subraya sola.
   const [marker, setMarker] = useLocalState<ColorKey | null>('apuntes.marker', null);
   const markerRef = useRef(marker);
@@ -105,7 +107,14 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
 
   useEffect(() => {
     setPageInput(String(page));
-    const t = setTimeout(() => void db.docs.update(doc.id, { lastPage: page }), 600);
+    const t = setTimeout(() => {
+      void db.docs.update(doc.id, { lastPage: page });
+      void db.docs
+        .where('id')
+        .equals(doc.id)
+        .and((d) => (d.maxPage ?? 0) < page)
+        .modify({ maxPage: page });
+    }, 600);
     return () => clearTimeout(t);
   }, [page, doc.id]);
 

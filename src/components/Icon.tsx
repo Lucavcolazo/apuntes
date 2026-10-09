@@ -46,6 +46,7 @@ const PATHS = {
   save: <path d="M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1zM8 4v5h7V4M8 20v-6h8v6" />,
   x: <path d="M6 6l12 12M18 6 6 18" />,
   book: <path d="M4 5a1 1 0 0 1 1-1h5a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H5a1 1 0 0 1-1-1zM20 5a1 1 0 0 0-1-1h-5a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h5a1 1 0 0 0 1-1z" />,
+  chart: <path d="M4 20h16M7 16v-5M12 16V7M17 16v-8" />,
   undo: <path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />,
   redo: <path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />,
   highlighter: <path d="m9 11-5 5v4h4l5-5M9 11l6-6 4 4-6 6M9 11l4 4" />,

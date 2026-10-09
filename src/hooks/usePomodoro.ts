@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { dayKey } from '../lib/dates';
+import { db, uid } from '../lib/db';
 import { lsGet, lsSet, useLocalState } from '../lib/storage';
 
 export type Mode = 'focus' | 'short' | 'long';
@@ -40,7 +42,7 @@ const DEFAULTS: PomodoroSettings = {
   startOnOpen: true,
 };
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const todayKey = () => dayKey();
 
 let audio: AudioContext | undefined;
 function ensureAudio() {
@@ -124,7 +126,12 @@ export function usePomodoro() {
     if (timer.mode === 'focus') {
       const cycle = timer.cycle + 1;
       const next: Mode = cycle % s.every === 0 ? 'long' : 'short';
-      setToday((t) => ({ ...t, count: t.count + 1, minutes: t.minutes + s.focus }));
+      setToday((t) =>
+        t.date === todayKey()
+          ? { ...t, count: t.count + 1, minutes: t.minutes + s.focus }
+          : { date: todayKey(), count: 1, minutes: s.focus },
+      );
+      void db.pomodoros.add({ id: uid(), date: todayKey(), at: Date.now(), minutes: s.focus });
       setTimer({ mode: next, running: true, remaining: duration(next), endAt: Date.now() + duration(next), cycle });
       notify('¡Terminaste un pomodoro!', `Tomate ${s[next]} minutos de pausa.`);
       if (s.lockBreak) setOverlay('break');
@@ -146,7 +153,7 @@ export function usePomodoro() {
 
   useEffect(() => {
     if (!timer.running) {
-      document.title = 'Apuntes';
+      document.title = 'Tomapuntes';
       return;
     }
     const m = Math.floor(remaining / 60_000);

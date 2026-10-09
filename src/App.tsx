@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
-import { Home, type FolderView } from './components/Home';
+import { Landing } from './components/Landing';
+import { Library, type FolderView } from './components/Library';
 import { BreakOverlay } from './components/Pomodoro';
 import { Reader } from './components/Reader';
 import { toast, Toaster } from './components/Toast';
@@ -8,12 +9,18 @@ import { usePomodoro } from './hooks/usePomodoro';
 import { DEFAULT_LABELS, type Labels } from './lib/colors';
 import { db, sortHighlights } from './lib/db';
 import { importPdfs, pickPdfs, sourcesFromDrop, type Source } from './lib/files';
+import { navigate, useLocation } from './lib/router';
 import { useLocalState } from './lib/storage';
 
 const prefersDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
 export function App() {
-  const docs = useLiveQuery(() => db.docs.toArray(), [], []);
+  const path = useLocation().split('#')[0];
+  const readerId = path.match(/^\/apuntes\/([^/]+)\/?$/)?.[1] ?? null;
+  const route = readerId ? 'reader' : path.startsWith('/apuntes') ? 'library' : 'landing';
+
+  const loadedDocs = useLiveQuery(() => db.docs.toArray());
+  const docs = loadedDocs ?? [];
   const folders = useLiveQuery(() => db.folders.toArray());
   const [savedView, setView] = useLocalState<FolderView>('apuntes.folder', 'all');
   // Si la carpeta guardada ya no existe, mostramos "Todos".
@@ -21,12 +28,12 @@ export function App() {
     savedView === 'all' || savedView === 'none' || !folders || folders.some((f) => f.id === savedView)
       ? savedView
       : 'all';
-  const folderId = view === 'all' || view === 'none' ? null : view;
-  const [openId, setOpenId] = useState<string | null>(null);
-  const doc = docs.find((d) => d.id === openId) ?? null;
+  // Lo que subís desde la biblioteca entra en la carpeta abierta.
+  const folderId = route === 'library' && view !== 'all' && view !== 'none' ? view : null;
+  const doc = docs.find((d) => d.id === readerId) ?? null;
   const highlights = useLiveQuery(
-    async () => (openId ? sortHighlights(await db.highlights.where('docId').equals(openId).toArray()) : []),
-    [openId],
+    async () => (readerId ? sortHighlights(await db.highlights.where('docId').equals(readerId).toArray()) : []),
+    [readerId],
     [],
   );
   const [labels, setLabels] = useLocalState<Labels>('apuntes.labels', DEFAULT_LABELS);
@@ -39,8 +46,19 @@ export function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // Un link a un libro que ya no existe vuelve a la biblioteca.
+  useEffect(() => {
+    if (readerId && loadedDocs && !doc) navigate('/apuntes', { replace: true });
+  }, [readerId, loadedDocs, doc]);
+
+  useEffect(() => {
+    if (route === 'library') window.scrollTo(0, 0);
+  }, [route]);
+
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+
   const open = (id: string) => {
-    setOpenId(id);
+    navigate(`/apuntes/${id}`);
     if (pomo.settings.startOnOpen && !pomo.running && pomo.mode === 'focus') {
       pomo.start();
       toast(`Pomodoro en marcha: ${pomo.settings.focus} min de lectura`);
@@ -104,30 +122,36 @@ export function App() {
 
   return (
     <>
-      {doc ? (
-        <Reader
-          key={doc.id}
-          doc={doc}
-          folderName={folders?.find((f) => f.id === doc.folderId)?.name}
-          highlights={highlights}
-          labels={labels}
-          setLabels={setLabels}
-          pomo={pomo}
-          onBack={() => setOpenId(null)}
-        />
+      {route === 'reader' ? (
+        doc && (
+          <Reader
+            key={doc.id}
+            doc={doc}
+            folderName={folders?.find((f) => f.id === doc.folderId)?.name}
+            highlights={highlights}
+            labels={labels}
+            setLabels={setLabels}
+            pomo={pomo}
+            onBack={() => navigate('/apuntes')}
+          />
+        )
       ) : (
         <>
-          <Home
-            docs={docs}
-            folders={folders ?? []}
-            view={view}
-            onView={setView}
-            pomo={pomo}
-            theme={theme}
-            onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            onOpen={open}
-            onUpload={upload}
-          />
+          {route === 'library' ? (
+            <Library
+              docs={docs}
+              folders={folders ?? []}
+              view={view}
+              onView={setView}
+              pomo={pomo}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              onOpen={open}
+              onUpload={upload}
+            />
+          ) : (
+            <Landing docs={docs} folders={folders ?? []} theme={theme} onToggleTheme={toggleTheme} onOpen={open} />
+          )}
           <BreakOverlay pomo={pomo} />
         </>
       )}

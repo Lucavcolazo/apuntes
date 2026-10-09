@@ -207,7 +207,7 @@ kbd {
 }
 .brand h1 {
   font-family: var(--font-serif);
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1.1;
@@ -1769,5 +1769,598 @@ select {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+   Landing: hero con tomatazo + resumen
+   ========================================================================== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+.brand-link img {
+  transition: transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.brand-link:hover img {
+  transform: rotate(-12deg) scale(1.08);
+}
+a.btn {
+  text-decoration: none;
+}
+
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 24px 32px;
+}
+.hero-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 3;
+}
+.hero-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.hero-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  text-align: center;
+}
+.hero-title-wrap {
+  position: relative;
+}
+.hero-title {
+  position: relative;
+  margin: 0;
+  font-size: clamp(44px, 12.5vw, 170px);
+  font-weight: 800;
+  letter-spacing: -0.075em;
+  line-height: 1;
+  color: var(--ink);
+}
+.hero-sub {
+  margin: 0;
+  font-size: clamp(14px, 1.6vw, 18px);
+  color: var(--ink-2);
+  position: relative;
+  z-index: 3;
+}
+.scroll-hint {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-weight: 550;
+  position: relative;
+  z-index: 3;
+  transition: color 0.2s, background-color 0.2s;
+}
+.scroll-hint:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.scroll-hint svg {
+  animation: nudge 1.8s ease-in-out infinite;
+}
+@keyframes nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+
+/* El tomate vuela: X con ease-out y Y con ease-in dibujan una parábola. */
+.flyer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(70px, 9vw, 120px);
+  height: clamp(70px, 9vw, 120px);
+  margin: calc(clamp(70px, 9vw, 120px) / -2) 0 0 calc(clamp(70px, 9vw, 120px) / -2);
+  z-index: 4;
+  animation: fly-x 0.85s cubic-bezier(0.15, 0.55, 0.35, 1) both;
+}
+.flyer-y {
+  width: 100%;
+  height: 100%;
+  animation: fly-y 0.85s cubic-bezier(0.55, 0, 0.85, 0.45) both;
+}
+.flyer img {
+  width: 100%;
+  height: 100%;
+  animation: spin 0.85s linear both;
+  filter: drop-shadow(0 18px 18px rgb(60 30 20 / 0.25));
+}
+@keyframes fly-x {
+  from {
+    transform: translateX(62vw);
+  }
+}
+@keyframes fly-y {
+  from {
+    transform: translateY(-70vh);
+  }
+}
+@keyframes spin {
+  from {
+    transform: rotate(320deg) scale(0.55);
+  }
+  to {
+    transform: rotate(-200deg) scale(1.15);
+  }
+}
+
+.phase-hit .hero-title {
+  animation: thud 0.42s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+@keyframes thud {
+  0% {
+    transform: none;
+  }
+  18% {
+    transform: translate(-6px, 4px) scale(0.97, 1.03);
+  }
+  40% {
+    transform: translate(5px, -2px) scale(1.01);
+  }
+  65% {
+    transform: translate(-2px, 1px);
+  }
+}
+
+/* Tomatazo */
+.splat {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(1180px, 130vw);
+  aspect-ratio: 1000 / 600;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+  overflow: visible;
+  mix-blend-mode: multiply;
+}
+:root[data-theme='dark'] .splat {
+  mix-blend-mode: normal;
+  opacity: 0.9;
+}
+.splat .juice {
+  fill: #d4381f;
+}
+.splat .pulp {
+  fill: #ef6447;
+  opacity: 0.75;
+}
+.splat .seed {
+  fill: #f7d978;
+  opacity: 0.9;
+}
+.splat-main,
+.splat-satellites,
+.drip,
+.drop {
+  transform-box: fill-box;
+}
+.splat.animate .splat-main {
+  transform-origin: center;
+  animation: splat-in 0.32s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.splat.animate .splat-satellites {
+  transform-origin: center;
+  animation: fade-in 0.2s 0.05s both;
+}
+.splat.animate .drop {
+  animation: drop-out 0.32s cubic-bezier(0.1, 0.8, 0.3, 1) both;
+}
+/* Las chorreaduras bajan despacio, como el jugo por una pared. */
+.splat .drip {
+  transform-origin: top center;
+}
+.splat.animate .drip {
+  animation-name: drip;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+  animation-fill-mode: both;
+}
+@keyframes splat-in {
+  from {
+    transform: scale(0.25, 0.15);
+    opacity: 0.6;
+  }
+}
+@keyframes drop-out {
+  from {
+    transform: translate(var(--dx), var(--dy)) scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes drip {
+  from {
+    transform: scaleY(0.05);
+  }
+}
+
+/* --- Resumen --------------------------------------------------------------- */
+.dash {
+  max-width: 1180px;
+  /* Alto mínimo de pantalla: así el scroll al resumen llega arriba aunque los datos todavía estén cargando. */
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 72px 32px 96px;
+}
+.dash-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.dash-head h2 {
+  margin: 0 0 4px;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+.dash-head p {
+  margin: 0;
+}
+.dash-head p::first-letter {
+  text-transform: uppercase;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 18px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 22px;
+}
+.card h3 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.card-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.card-empty p {
+  margin: 0;
+}
+.stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.week-card {
+  grid-row: span 1;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.hero-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hero-number {
+  font-size: clamp(40px, 5vw, 56px);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 1.05;
+}
+.stat-delta {
+  font-size: 12.5px;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.tile-value {
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.05em;
+}
+.tile-hint {
+  font-size: 12px;
+}
+
+/* Gráfico semanal */
+.week-chart {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chart-area {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  height: 170px;
+}
+.y-axis {
+  position: relative;
+}
+.y-axis span {
+  position: absolute;
+  right: 8px;
+  transform: translateY(50%);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.plot {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  align-items: end;
+}
+.gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line);
+}
+.plot-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12.5px;
+}
+.col {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 8px;
+}
+.col:hover,
+.col.hover {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+.bar {
+  position: relative;
+  width: min(24px, 60%);
+  border-radius: 4px 4px 0 0;
+  background: var(--tomato);
+  transition: height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.bar-cap {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 11.5px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.18);
+}
+.tooltip strong {
+  font-size: 13px;
+}
+.col .tooltip {
+  bottom: auto;
+  top: 0;
+  transform: translate(-50%, -100%);
+}
+.x-axis {
+  display: grid;
+  grid-template-columns: 30px repeat(7, 1fr);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+.x-axis::before {
+  content: '';
+}
+.x-axis .today {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* Seguí leyendo */
+.continue-card {
+  grid-column: 1;
+}
+.progress-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.progress-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px;
+  border-radius: 12px;
+  text-align: left;
+  transition: background-color 0.15s;
+}
+.progress-row:hover {
+  background: var(--surface-2);
+}
+.mini-cover {
+  width: 40px;
+  height: 52px;
+  border-radius: 2px 5px 5px 2px;
+  overflow: hidden;
+  background: #fffdf8;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.15);
+}
+.mini-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+}
+.progress-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.progress-title {
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.progress-meta {
+  font-size: 12px;
+}
+.meter {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--tomato) 16%, transparent);
+  overflow: hidden;
+  margin-top: 2px;
+}
+.meter span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--tomato);
+}
+.progress-pct {
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+
+/* Tiempo por carpeta */
+.bar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bar-list li {
+  display: grid;
+  grid-template-columns: minmax(70px, 120px) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 12.5px;
+}
+.bar-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-2);
+}
+.bar-track {
+  height: 10px;
+}
+.bar-track span {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: var(--tomato);
+}
+.bar-value {
+  color: var(--ink);
+  font-weight: 600;
+}
+.total-line {
+  margin: 18px 0 0;
+  font-size: 12.5px;
+}
+
+@media (max-width: 900px) {
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
+  .continue-card {
+    grid-column: auto;
+  }
+}
+@media (max-width: 720px) {
+  .hero {
+    padding: 18px 16px;
+  }
+  .dash {
+    padding: 48px 16px 72px;
+  }
+  .dash-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

@@ -1,6 +1,6 @@
-# Apuntes
+# Tomapuntes
 
-Lector de PDFs de clase con subrayado, notas, pomodoro y exportación.
+Lector de PDFs de clase con subrayado, notas, pomodoro, estadísticas y exportación.
 
 ```bash
 npm install
@@ -10,6 +10,10 @@ npm run dev
 Abrí http://localhost:5173.
 
 ## Cómo funciona
+
+- **Inicio (`/`)**: un tomate vuela y se estrella contra el título; después baja solo a **Tu lectura**: tiempo leído esta semana (y contra la anterior), minutos por día, racha, pomodoros, subrayados, el % de cada libro que estás leyendo y el tiempo por carpeta.
+- **Apuntes (`/apuntes`)** y **lector (`/apuntes/:id`)**: la biblioteca y la lectura de cada libro tienen su propia URL.
+- **Tiempo de lectura**: se cuenta solo mientras el libro está abierto, la pestaña visible y hubo actividad en los últimos 3 minutos. No cuenta durante las pausas del pomodoro.
 
 - **Biblioteca y carpetas**: subí PDFs (botón o arrastrando). Cada uno se muestra con su primera página como tapa. Creá carpetas con "Nueva carpeta" y mové los apuntes arrastrándolos a una carpeta o desde su menú. Si subís con una carpeta abierta, van ahí.
 - **Tomate**: girá el dial para elegir los minutos y tocá el tomate para empezar. En las pausas se pone verde y tapa los apuntes (se puede desactivar en ajustes).
@@ -31,6 +35,10 @@ Si subís un PDF que ya tiene resaltados (por ejemplo, hechos en el celu), la ap
 ## Datos
 
 Todo queda en el navegador (IndexedDB). No hay servidor. Si borrás los datos del sitio, se pierden los subrayados que no hayas guardado en el PDF.
+
+## Publicarla
+
+Es una app de una sola página: el hosting tiene que devolver `index.html` para cualquier ruta (en Netlify/Vercel/Cloudflare Pages es una regla de "rewrite" a `/index.html`).
 
 ## Stack
 

@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
 import type { Pomodoro } from '../hooks/usePomodoro';
 import { createFolder, db, deleteDoc, deleteFolder, type Doc, type Folder } from '../lib/db';
+import { Link } from '../lib/router';
 import { Icon } from './Icon';
 import { TomatoTimer } from './Pomodoro';
 import { toast } from './Toast';
@@ -23,7 +24,7 @@ interface Props {
 
 const DOC_MIME = 'text/x-apuntes-doc';
 
-export function Home({ docs, folders, view, onView, pomo, theme, onToggleTheme, onOpen, onUpload }: Props) {
+export function Library({ docs, folders, view, onView, pomo, theme, onToggleTheme, onOpen, onUpload }: Props) {
   const sortedFolders = [...folders].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const sortedDocs = [...docs].sort((a, b) => b.openedAt - a.openedAt);
   const inFolder = (id: string | null) => sortedDocs.filter((d) => (d.folderId ?? null) === id);
@@ -43,11 +44,17 @@ export function Home({ docs, folders, view, onView, pomo, theme, onToggleTheme, 
       <header className="home-head">
         <div className="brand">
           <h1>
-            <span className="brand-mark">Apuntes</span>
+            <Link to="/#inicio" className="brand-link" title="Volver al inicio">
+              <img src="/favicon.svg" alt="" width={34} height={34} />
+              <span className="brand-mark">Tomapuntes</span>
+            </Link>
           </h1>
           <p className="muted">Prepará el tomate, elegí qué leer y a concentrarse.</p>
         </div>
         <div className="head-actions">
+          <Link to="/#inicio" className="btn ghost">
+            <Icon name="chart" size={16} /> Resumen
+          </Link>
           <button className="icon-btn" onClick={onToggleTheme} title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
           </button>

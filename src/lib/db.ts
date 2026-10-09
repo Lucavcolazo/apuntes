@@ -24,6 +24,8 @@ export interface Doc {
   size: number;
   pages: number;
   lastPage: number;
+  /** Página más lejana a la que llegaste: de ahí sale el % leído. */
+  maxPage?: number;
   scale: number | null;
   addedAt: number;
   openedAt: number;
@@ -56,7 +58,24 @@ export interface Highlight {
   createdAt: number;
 }
 
+/** Tiempo de lectura acumulado por libro y por día. id = `${docId}|${date}` */
+export interface ReadingDay {
+  id: string;
+  docId: string;
+  date: string;
+  ms: number;
+}
+
+export interface PomodoroLog {
+  id: string;
+  date: string;
+  at: number;
+  minutes: number;
+}
+
 export const db = new Dexie('apuntes') as Dexie & {
+  reading: EntityTable<ReadingDay, 'id'>;
+  pomodoros: EntityTable<PomodoroLog, 'id'>;
   folders: EntityTable<Folder, 'id'>;
   docs: EntityTable<Doc, 'id'>;
   files: EntityTable<StoredFile, 'id'>;
@@ -104,9 +123,30 @@ export async function deleteDoc(id: string) {
     await db.files.delete(id);
     await db.highlights.where('docId').equals(id).delete();
   });
+  // El tiempo leído se conserva para las estadísticas aunque borres el PDF.
 }
 
 export const touchDoc = (id: string) => db.docs.update(id, { changedAt: Date.now() });
+
+// v3: estadísticas (tiempo leído por día y pomodoros) y página máxima alcanzada.
+db.version(3)
+  .stores({ reading: 'id, docId, date', pomodoros: 'id, date' })
+  .upgrade((tx) =>
+    tx
+      .table('docs')
+      .toCollection()
+      .modify((d) => {
+        d.maxPage ??= d.lastPage ?? 1;
+      }),
+  );
+
+export async function addReading(docId: string, date: string, ms: number) {
+  const id = `${docId}|${date}`;
+  await db.transaction('rw', db.reading, async () => {
+    const prev = await db.reading.get(id);
+    await db.reading.put({ id, docId, date, ms: (prev?.ms ?? 0) + ms });
+  });
+}
 
 export async function createFolder(name: string) {
   const folder: Folder = { id: uid(), name: name.trim(), createdAt: Date.now() };
