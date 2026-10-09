@@ -276,12 +276,176 @@ kbd {
   margin-top: 36px;
 }
 .shelf-subject {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   margin: 0 0 14px;
   font-size: 12px;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
+}
+.shelf-subject:hover {
+  color: var(--ink);
+}
+
+/* --- Carpetas ------------------------------------------------------------- */
+.folder-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 26px;
+}
+.folder-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-2);
+  font-weight: 550;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+}
+.folder-tab:hover {
+  border-color: var(--muted);
+  color: var(--ink);
+}
+.folder-tab .n {
+  font-size: 11px;
+  color: var(--muted);
+}
+.folder-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-ink);
+}
+.folder-tab.active .n {
+  color: inherit;
+  opacity: 0.6;
+}
+.folder-tab.drop {
+  border-style: dashed;
+  border-color: var(--tomato);
+  background: color-mix(in srgb, var(--tomato) 10%, transparent);
+  color: var(--ink);
+  transform: scale(1.05);
+}
+.folder-tab.new {
+  border-style: dashed;
+  color: var(--muted);
+}
+.folder-input {
+  width: 190px;
+  background: var(--surface);
+  border-color: var(--muted);
+  outline: none;
+}
+
+.folder-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: -6px 0 22px;
+}
+.folder-head h3 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.folder-rename {
+  font-size: 20px;
+  font-weight: 700;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--muted);
+  background: var(--surface);
+  outline: none;
+}
+.folder-head-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  align-self: center;
+}
+
+.book.dragging {
+  opacity: 0.4;
+}
+.book[draggable='true'] .cover {
+  cursor: pointer;
+}
+.book-actions {
+  position: relative;
+}
+.book-actions.open {
+  opacity: 1;
+}
+
+.menu {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: fade-in 0.12s ease;
+}
+.menu-title {
+  padding: 4px 8px 6px;
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--ink-2);
+}
+.menu button:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.menu button.current {
+  color: var(--ink);
+  font-weight: 650;
+}
+.menu button.current::after {
+  content: '✓';
+  margin-left: auto;
+}
+.menu button.new {
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+  margin-top: 4px;
+}
+.menu input {
+  height: 32px;
+  margin-top: 4px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--muted);
+  background: var(--bg);
+  outline: none;
 }
 .books {
   display: grid;
@@ -421,6 +585,9 @@ kbd {
   color: var(--ink-2);
   text-align: center;
   transition: border-color 0.2s, background-color 0.2s;
+}
+.dropzone.small {
+  min-height: 200px;
 }
 .dropzone strong {
   font-family: var(--font-serif);

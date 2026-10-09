@@ -293,7 +293,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
   // --- Teclado ---------------------------------------------------------------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest('input, textarea, select, dialog')) return;
+      if ((e.target as HTMLElement).closest?.('input, textarea, select, dialog')) return;
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();

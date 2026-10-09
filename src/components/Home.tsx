@@ -30,11 +30,6 @@ export function Home({ docs, folders, view, onView, pomo, theme, onToggleTheme, 
   const loose = inFolder(null);
   const current = sortedFolders.find((f) => f.id === view);
 
-  // Si la carpeta abierta se borró, volvemos a "Todos".
-  useEffect(() => {
-    if (view !== 'all' && view !== 'none' && !current && folders.length >= 0) onView('all');
-  }, [view, current]); // eslint-disable-line
-
   const moveTo = async (docId: string, folderId: string | null) => {
     await db.docs.update(docId, { folderId });
     const name = folderId ? folders.find((f) => f.id === folderId)?.name : 'Sin carpeta';

@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
-import { Home } from './components/Home';
+import { Home, type FolderView } from './components/Home';
 import { BreakOverlay } from './components/Pomodoro';
 import { Reader } from './components/Reader';
 import { toast, Toaster } from './components/Toast';
@@ -14,6 +14,14 @@ const prefersDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').ma
 
 export function App() {
   const docs = useLiveQuery(() => db.docs.toArray(), [], []);
+  const folders = useLiveQuery(() => db.folders.toArray());
+  const [savedView, setView] = useLocalState<FolderView>('apuntes.folder', 'all');
+  // Si la carpeta guardada ya no existe, mostramos "Todos".
+  const view =
+    savedView === 'all' || savedView === 'none' || !folders || folders.some((f) => f.id === savedView)
+      ? savedView
+      : 'all';
+  const folderId = view === 'all' || view === 'none' ? null : view;
   const [openId, setOpenId] = useState<string | null>(null);
   const doc = docs.find((d) => d.id === openId) ?? null;
   const highlights = useLiveQuery(
@@ -42,7 +50,7 @@ export function App() {
   const handleImport = async (sources: Source[]) => {
     if (!sources.length) return;
     try {
-      const imported = await importPdfs(sources);
+      const imported = await importPdfs(sources, folderId);
       if (!imported.length) return toast('Solo se pueden subir archivos PDF');
       const found = imported.reduce((n, i) => n + i.found, 0);
       toast(
@@ -62,7 +70,9 @@ export function App() {
   // Arrastrar PDFs a cualquier parte de la ventana.
   useEffect(() => {
     let depth = 0;
-    const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files');
+    // Solo archivos de afuera: arrastrar un libro a una carpeta no cuenta.
+    const hasFiles = (e: DragEvent) =>
+      !!e.dataTransfer?.types.includes('Files') && !e.dataTransfer.types.includes('text/x-apuntes-doc');
     const enter = (e: DragEvent) => {
       if (!hasFiles(e)) return;
       depth++;
@@ -98,6 +108,7 @@ export function App() {
         <Reader
           key={doc.id}
           doc={doc}
+          folderName={folders?.find((f) => f.id === doc.folderId)?.name}
           highlights={highlights}
           labels={labels}
           setLabels={setLabels}
@@ -108,6 +119,9 @@ export function App() {
         <>
           <Home
             docs={docs}
+            folders={folders ?? []}
+            view={view}
+            onView={setView}
             pomo={pomo}
             theme={theme}
             onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
