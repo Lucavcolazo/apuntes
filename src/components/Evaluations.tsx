@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { daysUntil, whenLabel } from '../lib/dates';
 import {
   createEvaluation,
+  createFolder,
   db,
   EVAL_KINDS,
   uid,
@@ -25,6 +26,8 @@ interface Props {
   folders: Folder[];
   onOpenDoc: (id: string) => void;
 }
+
+const NEW_SUBJECT = '__nueva__';
 
 const prettyDate = (date: string) =>
   new Date(`${date}T12:00`).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -184,6 +187,7 @@ function EvaluationDetail({
   const [title, setTitle] = useState(ev.title);
   const [draft, setDraft] = useState('');
   const [picking, setPicking] = useState(false);
+  const [newSubject, setNewSubject] = useState(false);
   const save = (changes: Partial<Evaluation>) => void db.evaluations.update(ev.id, changes);
 
   // El título se guarda mientras escribís, con una pequeña demora.
@@ -238,14 +242,42 @@ function EvaluationDetail({
           </label>
           <label>
             <span>Materia</span>
-            <select value={ev.folderId ?? ''} onChange={(e) => save({ folderId: e.target.value || null })}>
-              <option value="">Sin materia</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
+            {newSubject ? (
+              <input
+                className="subject-input"
+                autoFocus
+                placeholder="Nombre de la materia"
+                onBlur={() => setNewSubject(false)}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Escape') setNewSubject(false);
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const name = e.currentTarget.value.trim();
+                    setNewSubject(false);
+                    if (!name) return;
+                    const folder = await createFolder(name);
+                    save({ folderId: folder.id });
+                    toast(`Materia "${name}" creada`);
+                  }
+                }}
+              />
+            ) : (
+              <select
+                value={ev.folderId ?? ''}
+                onChange={(e) => {
+                  if (e.target.value === NEW_SUBJECT) setNewSubject(true);
+                  else save({ folderId: e.target.value || null });
+                }}
+              >
+                <option value="">Sin materia</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+                <option value={NEW_SUBJECT}>+ Nueva materia…</option>
+              </select>
+            )}
           </label>
           <label className="check eval-done">
             <input type="checkbox" checked={ev.done} onChange={(e) => save({ done: e.target.checked })} />
@@ -404,7 +436,7 @@ function DocPicker({
       .slice()
       .sort((a, b) => Number(b.id === preferFolder) - Number(a.id === preferFolder) || a.name.localeCompare(b.name, 'es'))
       .map((f) => ({ id: f.id, name: f.name, docs: docs.filter((d) => d.folderId === f.id) })),
-    { id: 'none', name: 'Sin carpeta', docs: docs.filter((d) => !d.folderId) },
+    { id: 'none', name: 'Sin materia', docs: docs.filter((d) => !d.folderId) },
   ].filter((g) => g.docs.length);
 
   const toggle = (id: string) =>

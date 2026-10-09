@@ -83,7 +83,7 @@ export function computeStats(docs: Doc[], folders: Folder[], reading: ReadingDay
   const folderMs = new Map<string, number>();
   for (const p of progress) {
     if (!p.ms) continue;
-    const name = folderName.get(p.doc.folderId ?? '') ?? 'Sin carpeta';
+    const name = folderName.get(p.doc.folderId ?? '') ?? 'Sin materia';
     folderMs.set(name, (folderMs.get(name) ?? 0) + p.ms);
   }
 

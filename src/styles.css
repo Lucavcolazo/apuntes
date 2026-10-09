@@ -4263,3 +4263,12 @@ a.btn {
   font-size: 14px;
   border-radius: 12px;
 }
+.eval-fields .subject-input {
+  height: 36px;
+  width: 200px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--muted);
+  background: var(--bg);
+  outline: none;
+}

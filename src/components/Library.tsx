@@ -35,7 +35,7 @@ export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }:
 
   const moveTo = async (docId: string, folderId: string | null) => {
     await db.docs.update(docId, { folderId });
-    const name = folderId ? folders.find((f) => f.id === folderId)?.name : 'Sin carpeta';
+    const name = folderId ? folders.find((f) => f.id === folderId)?.name : 'Sin materia';
     toast(`Movido a ${name}`);
   };
 
@@ -113,7 +113,7 @@ export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }:
               {loose.length > 0 && (
                 <div className="shelf-group">
                   <button className="shelf-subject" onClick={() => onView('none')}>
-                    Sin carpeta
+                    Sin materia
                   </button>
                   <Books docs={loose} folders={sortedFolders} onOpen={onOpen} onMove={moveTo} />
                 </div>
@@ -124,8 +124,8 @@ export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }:
           ) : (
             <button className="dropzone small" onClick={onUpload}>
               <Icon name="folder" size={24} />
-              <strong>Carpeta vacía</strong>
-              <span className="muted">Arrastrá libros a la carpeta desde "Todos" o subí PDFs directo acá.</span>
+              <strong>Materia vacía</strong>
+              <span className="muted">Arrastrá libros a esta materia desde "Todos" o subí PDFs directo acá.</span>
             </button>
           )}
         </section>
@@ -175,7 +175,7 @@ function FolderBar({
   });
 
   return (
-    <nav className="folder-bar" aria-label="Carpetas">
+    <nav className="folder-bar" aria-label="Materias">
       <button className={`folder-tab ${view === 'all' ? 'active' : ''}`} onClick={() => onView('all')}>
         Todos <span className="n">{total}</span>
       </button>
@@ -197,14 +197,14 @@ function FolderBar({
           onClick={() => onView('none')}
           {...dropProps(null)}
         >
-          Sin carpeta <span className="n">{looseCount}</span>
+          Sin materia <span className="n">{looseCount}</span>
         </button>
       )}
       {creating ? (
         <input
           className="folder-tab folder-input"
           autoFocus
-          placeholder="Nombre de la carpeta"
+          placeholder="Nombre de la materia"
           onBlur={() => setCreating(false)}
           onKeyDown={async (e) => {
             if (e.key === 'Escape') setCreating(false);
@@ -219,7 +219,7 @@ function FolderBar({
         />
       ) : (
         <button className="folder-tab new" onClick={() => setCreating(true)}>
-          <Icon name="plus" size={14} /> Nueva carpeta
+          <Icon name="plus" size={14} /> Nueva materia
         </button>
       )}
     </nav>
@@ -241,12 +241,12 @@ function FolderHeader({
 
   const remove = async () => {
     const msg = count
-      ? `¿Borrar la carpeta "${folder.name}"? Sus ${count} apuntes no se borran: quedan en "Sin carpeta".`
-      : `¿Borrar la carpeta "${folder.name}"?`;
+      ? `¿Borrar la materia "${folder.name}"? Sus ${count} apuntes no se borran: quedan en "Sin materia".`
+      : `¿Borrar la materia "${folder.name}"?`;
     if (!confirm(msg)) return;
     await deleteFolder(folder.id);
     onDeleted();
-    toast('Carpeta borrada');
+    toast('Materia borrada');
   };
 
   return (
@@ -274,10 +274,10 @@ function FolderHeader({
       </span>
       {extra}
       <div className="folder-head-actions">
-        <button className="icon-btn xs" onClick={() => setRenaming(true)} title="Renombrar carpeta">
+        <button className="icon-btn xs" onClick={() => setRenaming(true)} title="Renombrar materia">
           <Icon name="pencil" size={14} />
         </button>
-        <button className="icon-btn xs" onClick={remove} title="Borrar carpeta">
+        <button className="icon-btn xs" onClick={remove} title="Borrar materia">
           <Icon name="trash" size={14} />
         </button>
       </div>
@@ -362,7 +362,7 @@ function Book({
         </div>
       </div>
       <div className={`book-actions ${menu ? 'open' : ''}`}>
-        <button className="icon-btn xs" onClick={() => setMenu(!menu)} title="Mover a carpeta" aria-expanded={menu}>
+        <button className="icon-btn xs" onClick={() => setMenu(!menu)} title="Cambiar de materia" aria-expanded={menu}>
           <Icon name="folder" size={14} />
         </button>
         <button className="icon-btn xs" onClick={rename} title="Renombrar">
@@ -409,19 +409,19 @@ function MoveMenu({
 
   return (
     <div className="menu" ref={ref} role="menu">
-      <div className="menu-title">Mover a</div>
+      <div className="menu-title">Materia</div>
       {folders.map((f) => (
         <button key={f.id} role="menuitem" className={doc.folderId === f.id ? 'current' : ''} onClick={() => pick(f.id)}>
           <Icon name="folder" size={14} /> {f.name}
         </button>
       ))}
       <button role="menuitem" className={!doc.folderId ? 'current' : ''} onClick={() => pick(null)}>
-        Sin carpeta
+        Sin materia
       </button>
       {creating ? (
         <input
           autoFocus
-          placeholder="Nueva carpeta"
+          placeholder="Nueva materia"
           onKeyDown={async (e) => {
             if (e.key === 'Escape') setCreating(false);
             if (e.key === 'Enter' && e.currentTarget.value.trim()) {
@@ -432,7 +432,7 @@ function MoveMenu({
         />
       ) : (
         <button role="menuitem" className="new" onClick={() => setCreating(true)}>
-          <Icon name="plus" size={14} /> Nueva carpeta…
+          <Icon name="plus" size={14} /> Nueva materia…
         </button>
       )}
     </div>
@@ -500,7 +500,7 @@ function BackupMenu() {
                 <Icon name="upload" size={14} /> Importar una copia…
               </button>
               <p className="muted backup-note">
-                Incluye PDFs, subrayados, notas, carpetas, estadísticas y ajustes. Guardala en iCloud o Drive.
+                Incluye PDFs, subrayados, notas, materias, estadísticas y ajustes. Guardala en iCloud o Drive.
               </p>
             </>
           )}
