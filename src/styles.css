@@ -4140,3 +4140,152 @@ a.btn {
   font-size: 21px;
   white-space: nowrap;
 }
+
+/* --- Barra de navegación ------------------------------------------------------ */
+.app-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid var(--line);
+}
+/* En la entrada flota arriba y aparece al bajar del hero. */
+.app-nav.reveal {
+  position: fixed;
+  inset: 0 0 auto;
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease;
+}
+.app-nav.reveal.shown {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+.app-nav-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  height: 58px;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-size: 15px;
+}
+.nav-brand img {
+  transition: transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.nav-brand:hover img {
+  transform: rotate(-12deg) scale(1.08);
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 10px;
+}
+.nav-links a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+  transition: color 0.15s, background-color 0.15s;
+}
+.nav-links a:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.nav-links a.active {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.nav-links a.active::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -11px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--tomato);
+}
+.nav-end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+.page-head h1 {
+  margin: 0 0 4px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+.page-head p {
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .nav-label {
+    display: none;
+  }
+  .nav-links a {
+    padding: 0 10px;
+  }
+  .nav-links a .pill {
+    position: absolute;
+    top: 0;
+    right: -2px;
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    font-size: 10px;
+    padding: 0 4px;
+  }
+}
+@media (max-width: 560px) {
+  .app-nav-inner {
+    padding: 0 12px;
+    gap: 6px;
+  }
+  .nav-brand span {
+    display: none;
+  }
+  .nav-links {
+    margin-left: 0;
+  }
+  .page-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+/* La tarjeta del tomate queda pegada debajo de la barra fija. */
+.timer-card {
+  top: 82px;
+}

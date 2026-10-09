@@ -14,10 +14,8 @@ import {
 import { evalStatus, sortEvaluations } from '../lib/evaluations';
 import { Link, navigate } from '../lib/router';
 import { pagesRead, progressOf } from '../lib/stats';
-import { AccountButton } from './Account';
 import { Icon } from './Icon';
 import { EvalCalendar } from './EvalCalendar';
-import { SectionTabs } from './SectionTabs';
 import { useLocalState } from '../lib/storage';
 import { toast } from './Toast';
 
@@ -53,25 +51,17 @@ export function Evaluations({ evalId, docs, folders, onOpenDoc }: Props) {
 
   return (
     <div className="home">
-      <header className="home-head">
-        <div className="brand">
-          <h1>
-            <Link to="/#inicio" className="brand-link" title="Volver al inicio">
-              <img src="/favicon.svg" alt="" width={34} height={34} />
-              <span className="brand-mark">Tomapuntes</span>
-            </Link>
-          </h1>
+      <header className="page-head">
+        <div>
+          <h1>Parciales y TPs</h1>
           <p className="muted">Anotá lo que se viene y conectá los apuntes que entran.</p>
         </div>
         <div className="head-actions">
           <button className="btn primary" onClick={() => void create()}>
             <Icon name="plus" size={16} /> Nuevo parcial o TP
           </button>
-          <AccountButton />
         </div>
       </header>
-
-      <SectionTabs active="evals" />
 
       {current ? (
         <EvaluationDetail

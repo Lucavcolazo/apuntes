@@ -4,7 +4,6 @@ import { COLORS, type Labels } from '../lib/colors';
 import { db, type Doc, type Folder, type Highlight } from '../lib/db';
 import { grade, nextLabel, reviewQueue } from '../lib/review';
 import { Link, navigate } from '../lib/router';
-import { Icon } from './Icon';
 
 interface Props {
   docs: Doc[];
@@ -80,16 +79,13 @@ export function Review({ docs, folders, labels }: Props) {
 
   return (
     <div className="review">
-      <header className="review-head">
-        <Link to="/apuntes" className="btn ghost sm">
-          <Icon name="book" size={15} /> Mis apuntes
-        </Link>
-        {phase === 'session' && (
+      {phase === 'session' && (
+        <header className="review-head">
           <span className="muted tabular">
             {tally.knew + tally.again} hechas · {queue.length} en la fila
           </span>
-        )}
-      </header>
+        </header>
+      )}
 
       {phase === 'pick' && (
         <section className="review-pick">

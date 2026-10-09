@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
+import { AppNav } from './components/AppNav';
 import { Evaluations } from './components/Evaluations';
 import { Landing } from './components/Landing';
 import { Library, type FolderView } from './components/Library';
@@ -152,6 +153,7 @@ export function App() {
         )
       ) : (
         <>
+          {route !== 'login' && <AppNav route={route} theme={theme} onToggleTheme={toggleTheme} />}
           {route === 'evals' ? (
             <Evaluations
               evalId={path.match(/^\/parciales\/([^/]+)/)?.[1] ?? null}
@@ -170,8 +172,6 @@ export function App() {
               view={view}
               onView={setView}
               pomo={pomo}
-              theme={theme}
-              onToggleTheme={toggleTheme}
               onOpen={open}
               onUpload={upload}
             />

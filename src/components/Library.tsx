@@ -8,9 +8,7 @@ import { sortEvaluations } from '../lib/evaluations';
 import { reviewQueue } from '../lib/review';
 import { downloadBlob } from '../lib/files';
 import { Link, navigate } from '../lib/router';
-import { AccountButton } from './Account';
 import { Icon } from './Icon';
-import { SectionTabs } from './SectionTabs';
 import { TomatoTimer } from './Pomodoro';
 import { toast } from './Toast';
 
@@ -23,15 +21,13 @@ interface Props {
   view: FolderView;
   onView: (v: FolderView) => void;
   pomo: Pomodoro;
-  theme: 'light' | 'dark';
-  onToggleTheme: () => void;
   onOpen: (id: string) => void;
   onUpload: () => void;
 }
 
 const DOC_MIME = 'text/x-apuntes-doc';
 
-export function Library({ docs, folders, view, onView, pomo, theme, onToggleTheme, onOpen, onUpload }: Props) {
+export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }: Props) {
   const sortedFolders = [...folders].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const sortedDocs = [...docs].sort((a, b) => b.openedAt - a.openedAt);
   const inFolder = (id: string | null) => sortedDocs.filter((d) => (d.folderId ?? null) === id);
@@ -57,36 +53,23 @@ export function Library({ docs, folders, view, onView, pomo, theme, onToggleThem
 
   return (
     <div className="home">
-      <header className="home-head">
-        <div className="brand">
-          <h1>
-            <Link to="/#inicio" className="brand-link" title="Volver al inicio">
-              <img src="/favicon.svg" alt="" width={34} height={34} />
-              <span className="brand-mark">Tomapuntes</span>
-            </Link>
-          </h1>
+      <header className="page-head">
+        <div>
+          <h1>Mis apuntes</h1>
           <p className="muted">Prepará el tomate, elegí qué leer y a concentrarse.</p>
         </div>
         <div className="head-actions">
-          <Link to="/#inicio" className="btn ghost">
-            <Icon name="chart" size={16} /> Resumen
-          </Link>
-          <Link to={`/repaso${current ? `?carpeta=${current.id}` : ''}`} className="btn ghost">
-            <Icon name="cards" size={16} /> Repasar
-            {dueCount > 0 && <span className="pill tabular">{dueCount}</span>}
-          </Link>
+          {current && dueCount > 0 && (
+            <Link to={`/repaso?carpeta=${current.id}`} className="btn ghost">
+              <Icon name="cards" size={16} /> Repasar {current.name}
+            </Link>
+          )}
           <BackupMenu />
-          <AccountButton />
-          <button className="icon-btn" onClick={onToggleTheme} title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
-            <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
-          </button>
           <button className="btn primary" onClick={onUpload}>
             <Icon name="upload" size={16} /> Subir PDF{current ? ` a ${current.name}` : ''}
           </button>
         </div>
       </header>
-
-      <SectionTabs active="notes" badge={upcoming.filter((e) => daysUntil(e.date) <= 7).length} />
 
       <div className="home-grid">
         <section className="timer-card" aria-labelledby="timer-title">
