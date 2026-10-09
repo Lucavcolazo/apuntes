@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { Pomodoro } from './usePomodoro';
+import { liveProgress, liveRemaining, MODE_LABEL, useTimerTick, type Pomodoro } from './usePomodoro';
 
 const BODY = 'M32 15C43 12.5 59 20 59 37 59 51 47 60 32 60S5 51 5 37C5 20 21 12.5 32 15Z';
 const COLORS = {
@@ -24,10 +24,25 @@ function tomatoSvg(progress: number, isBreak: boolean) {
 </svg>`;
 }
 
-export function useFaviconProgress(pomo: Pomodoro) {
+/** Título y favicon de la pestaña con el pomodoro. Es un componente aparte: su tic no redibuja la app. */
+export function TabTimer({ pomo }: { pomo: Pomodoro }) {
+  useTimerTick(pomo.running, 1000);
+  useFaviconProgress(pomo);
+
+  const remaining = liveRemaining(pomo);
+  const m = Math.floor(remaining / 60_000);
+  const sec = Math.floor((remaining % 60_000) / 1000);
+  const title = pomo.running ? `${m}:${String(sec).padStart(2, '0')} · ${MODE_LABEL[pomo.mode]}` : 'Tomapuntes';
+  useEffect(() => {
+    document.title = title;
+  }, [title]);
+  return null;
+}
+
+function useFaviconProgress(pomo: Pomodoro) {
   const lastKey = useRef('');
-  // Redondeamos para no regenerar el ícono 4 veces por segundo.
-  const step = Math.round(pomo.progress * 40);
+  // Redondeamos para no regenerar el ícono a cada segundo.
+  const step = Math.round(liveProgress(pomo) * 40);
   const isBreak = pomo.mode !== 'focus';
 
   useEffect(() => {

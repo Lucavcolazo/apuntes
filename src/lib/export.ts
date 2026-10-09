@@ -52,7 +52,8 @@ export function printHighlights(title: string, list: Highlight[], by: GroupBy, l
     h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
     .sub{color:#666;font-size:13px;margin-bottom:28px}
     h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#666;margin:28px 0 10px;border-bottom:1px solid #e5e5e5;padding-bottom:6px}
-    .item{border-left:4px solid var(--c);padding:2px 0 2px 14px;margin:0 0 14px;break-inside:avoid}
+    .item{padding:0 0 0 20px;margin:0 0 14px;break-inside:avoid;position:relative}
+    .item::before{content:'';position:absolute;left:2px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--c)}
     .meta{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.05em}
     p{margin:2px 0 0;font-size:13px}
     .note{color:#444;font-size:13px}

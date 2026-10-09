@@ -95,10 +95,7 @@ export function GuestBanner() {
       <img src="/favicon.svg" alt="" width={34} height={34} />
       <div className="guest-text">
         <strong>Estás como invitado</strong>
-        <span className="muted">
-          Todo funciona, pero tus apuntes viven solo en este navegador: si borrás los datos o cambiás de dispositivo, no
-          los vas a ver. Con una cuenta gratis quedan a salvo y te siguen al celu.
-        </span>
+        <span className="muted">Tus apuntes viven solo en este navegador. Con una cuenta te siguen a todos lados.</span>
       </div>
       <div className="guest-actions">
         <Link to="/entrar" className="btn primary">

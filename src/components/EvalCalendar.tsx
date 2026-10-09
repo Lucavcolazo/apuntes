@@ -33,6 +33,7 @@ export function EvalCalendar({ evaluations, folders }: { evaluations: Evaluation
     });
 
   const title = first.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+  const addOn = async (date: string) => navigate(`/parciales/${(await createEvaluation({ date })).id}`);
 
   return (
     <section className="calendar">
@@ -43,13 +44,13 @@ export function EvalCalendar({ evaluations, folders }: { evaluations: Evaluation
         </span>
         <div className="cal-nav">
           <button className="icon-btn sm" onClick={() => move(-1)} aria-label="Mes anterior">
-            ‹
+            <Icon name="chevronLeft" size={16} />
           </button>
           <button className="btn ghost sm" onClick={() => setCursor({ y: now.getFullYear(), m: now.getMonth() })}>
             Hoy
           </button>
           <button className="icon-btn sm" onClick={() => move(1)} aria-label="Mes siguiente">
-            ›
+            <Icon name="chevronRight" size={16} />
           </button>
         </div>
       </header>
@@ -71,11 +72,20 @@ export function EvalCalendar({ evaluations, folders }: { evaluations: Evaluation
               key={key}
               role="gridcell"
               className={`cal-day ${outside ? 'outside' : ''} ${key === today ? 'today' : ''} ${past ? 'past' : ''}`}
-              onClick={async (e) => {
+              onClick={(e) => {
                 // Tocar un día libre (no un evento) crea un parcial en esa fecha.
                 if ((e.target as HTMLElement).closest('a') || past) return;
-                navigate(`/parciales/${(await createEvaluation({ date: key })).id}`);
+                void addOn(key);
               }}
+              onKeyDown={(e) => {
+                if (past || (e.key !== 'Enter' && e.key !== ' ') || (e.target as HTMLElement).closest('a')) return;
+                e.preventDefault();
+                void addOn(key);
+              }}
+              tabIndex={past ? undefined : 0}
+              aria-label={`${date.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}${
+                events.length ? `: ${events.map((ev) => ev.title || EVAL_KINDS[ev.kind]).join(', ')}` : ''
+              }${past ? '' : '. Enter para anotar algo'}`}
               title={past ? undefined : 'Tocá para anotar algo este día'}
             >
               <span className="cal-num tabular">{date.getDate()}</span>

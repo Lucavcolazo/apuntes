@@ -10,7 +10,7 @@
 import Dexie, { type Table } from 'dexie';
 import { useSyncExternalStore } from 'react';
 import { db, type Doc } from './db';
-import { sha256 } from './files';
+import { sha256 } from './hash';
 import { lsGet, lsSet } from './storage';
 import { supabase } from './supabase';
 

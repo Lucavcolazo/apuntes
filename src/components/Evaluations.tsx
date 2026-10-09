@@ -230,6 +230,7 @@ function EvaluationDetail({
         </div>
         <input
           className="eval-title"
+          aria-label="Título"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={ev.kind === 'tp' ? 'Ej.: TP 2 – Redes de Petri' : 'Ej.: Primer parcial'}
@@ -245,6 +246,7 @@ function EvaluationDetail({
             {newSubject ? (
               <input
                 className="subject-input"
+                aria-label="Nombre de la nueva materia"
                 autoFocus
                 placeholder="Nombre de la materia"
                 onBlur={() => setNewSubject(false)}
@@ -287,7 +289,9 @@ function EvaluationDetail({
 
         <div className="eval-summary">
           <div>
-            <span className="hero-number">{ev.done ? '✓' : days < 0 ? '—' : days === 0 ? '¡Hoy!' : days}</span>
+            <span className="hero-number">
+              {ev.done ? <Icon name="check" size={38} /> : days < 0 ? '—' : days === 0 ? '¡Hoy!' : days}
+            </span>
             <span className="muted">
               {ev.done ? 'Listo' : days < 0 ? 'Ya pasó' : days === 0 ? 'Es hoy' : `${days === 1 ? 'día' : 'días'} · ${whenLabel(days)}`}
             </span>
@@ -315,7 +319,7 @@ function EvaluationDetail({
               addNote();
             }}
           >
-            <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Agregar una nota…" />
+            <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Agregar una nota…" aria-label="Nueva nota" />
             <button className="btn primary sm" disabled={!draft.trim()}>
               Agregar
             </button>

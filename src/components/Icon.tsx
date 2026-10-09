@@ -62,6 +62,15 @@ const PATHS = {
   plane: <path d="M10.6 3.6a1.4 1.4 0 0 1 2.8 0V9.2l7.1 4.1v2l-7.1-2.1v4.6l2.1 1.6v1.7L12 20.1l-3.5 1v-1.7l2.1-1.6v-4.6l-7.1 2.1v-2l7.1-4.1z" />,
   rain: <path d="M7.5 3.5S4 8 4 10.5a3.5 3.5 0 0 0 7 0C11 8 7.5 3.5 7.5 3.5zM16.5 9.5S13 14 13 16.5a3.5 3.5 0 0 0 7 0c0-2.5-3.5-7-3.5-7z" />,
   white: <path d="M3 12h2.5l2-5 3 10 3-14 3 14 2-5H21" />,
+  more: (
+    <>
+      <circle cx="5.5" cy="12" r="1.3" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.3" fill="currentColor" />
+      <circle cx="18.5" cy="12" r="1.3" fill="currentColor" />
+    </>
+  ),
+  chevronLeft: <path d="m15 6-6 6 6 6" />,
+  chevronRight: <path d="m9 6 6 6-6 6" />,
   check: <path d="M5 12.5 10 17 19 7" />,
   cards: <path d="M8 4h11a1 1 0 0 1 1 1v12M4 8h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" />,
   calendar: <path d="M4 6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 10h16M8 3v4M16 3v4" />,

@@ -1,11 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
 import type { Pomodoro } from '../hooks/usePomodoro';
-import { exportBackup, importBackup } from '../lib/backup';
 import { daysUntil, whenLabel } from '../lib/dates';
 import { createEvaluation, createFolder, db, deleteDoc, deleteFolder, EVAL_KINDS, type Doc, type Evaluation, type Folder } from '../lib/db';
 import { sortEvaluations } from '../lib/evaluations';
-import { downloadBlob } from '../lib/files';
+import { downloadBlob } from '../lib/download';
 import { Link, navigate } from '../lib/router';
 import { Icon } from './Icon';
 import { TomatoTimer } from './Pomodoro';
@@ -203,6 +202,7 @@ function FolderBar({
       {creating ? (
         <input
           className="folder-tab folder-input"
+          aria-label="Nombre de la nueva materia"
           autoFocus
           placeholder="Nombre de la materia"
           onBlur={() => setCreating(false)}
@@ -254,6 +254,7 @@ function FolderHeader({
       {renaming ? (
         <input
           className="folder-rename"
+          aria-label="Nuevo nombre de la materia"
           autoFocus
           defaultValue={folder.name}
           onBlur={(e) => {
@@ -421,6 +422,7 @@ function MoveMenu({
       {creating ? (
         <input
           autoFocus
+          aria-label="Nombre de la nueva materia"
           placeholder="Nueva materia"
           onKeyDown={async (e) => {
             if (e.key === 'Escape') setCreating(false);
@@ -455,6 +457,7 @@ function BackupMenu() {
   const doExport = async () => {
     setBusy('Armando la copia…');
     try {
+      const { exportBackup } = await import('../lib/backup');
       const { blob, filename, docs, highlights } = await exportBackup();
       downloadBlob(blob, filename);
       toast(`Copia lista: ${docs} PDFs y ${highlights} subrayados`);
@@ -469,6 +472,7 @@ function BackupMenu() {
   const doImport = async (file: File) => {
     setBusy('Restaurando…');
     try {
+      const { importBackup } = await import('../lib/backup');
       const r = await importBackup(file);
       toast(`Restaurados ${r.docs} PDFs y ${r.highlights} subrayados${r.skipped ? ` (${r.skipped} sin archivo)` : ''}`);
       // Los ajustes (etiquetas, sonidos, pomodoro…) se leen al cargar la página.

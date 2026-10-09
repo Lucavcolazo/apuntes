@@ -66,6 +66,7 @@ export function HighlightPopover({ highlight: h, x, y, labels, history, onClose 
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="Agregar una nota…"
+        aria-label="Nota del subrayado"
         rows={3}
       />
       <div className="popover-actions">

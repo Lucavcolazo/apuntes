@@ -1,20 +1,24 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AppNav } from './components/AppNav';
 import { Evaluations } from './components/Evaluations';
+import { Garden } from './components/Garden';
 import { Landing } from './components/Landing';
 import { Library, type FolderView } from './components/Library';
 import { Login } from './components/Login';
 import { BreakOverlay } from './components/Pomodoro';
-import { Reader } from './components/Reader';
 import { toast, Toaster } from './components/Toast';
-import { useFaviconProgress } from './hooks/useFaviconProgress';
+import { TabTimer } from './hooks/TabTimer';
 import { usePomodoro } from './hooks/usePomodoro';
 import { DEFAULT_LABELS, type Labels } from './lib/colors';
 import { db, sortHighlights } from './lib/db';
-import { importPdfs, pickPdfs, sourcesFromDrop, type Source } from './lib/files';
+import type { Source } from './lib/files';
 import { navigate, useLocation } from './lib/router';
 import { useLocalState } from './lib/storage';
+
+// El lector trae pdf.js y pdf-lib: se carga recién al abrir un libro.
+const Reader = lazy(() => import('./components/Reader').then((m) => ({ default: m.Reader })));
+const loadFiles = () => import('./lib/files');
 
 const prefersDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
@@ -51,7 +55,6 @@ export function App() {
   const [labels, setLabels] = useLocalState<Labels>('apuntes.labels', DEFAULT_LABELS);
   const [theme, setTheme] = useLocalState<'light' | 'dark'>('apuntes.theme', prefersDark() ? 'dark' : 'light');
   const pomo = usePomodoro();
-  useFaviconProgress(pomo);
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -86,6 +89,7 @@ export function App() {
   const handleImport = async (sources: Source[]) => {
     if (!sources.length) return;
     try {
+      const { importPdfs } = await loadFiles();
       const imported = await importPdfs(sources, folderId);
       if (!imported.length) return toast('Solo se pueden subir archivos PDF');
       const found = imported.reduce((n, i) => n + i.found, 0);
@@ -99,6 +103,7 @@ export function App() {
   };
 
   const upload = async () => {
+    const { pickPdfs } = await loadFiles();
     const sources = await pickPdfs(fileInput.current!);
     if (sources) await handleImport(sources);
   };
@@ -124,6 +129,7 @@ export function App() {
       e.preventDefault();
       depth = 0;
       setDragging(false);
+      const { sourcesFromDrop } = await loadFiles();
       await handleImport(await sourcesFromDrop(e.dataTransfer!));
     };
     window.addEventListener('dragenter', enter);
@@ -142,16 +148,18 @@ export function App() {
     <>
       {route === 'reader' ? (
         doc && (
-          <Reader
-            key={doc.id}
-            doc={doc}
-            folderName={folders?.find((f) => f.id === doc.folderId)?.name}
-            highlights={highlights}
-            labels={labels}
-            setLabels={setLabels}
-            pomo={pomo}
-            onBack={() => navigate('/apuntes')}
-          />
+          <Suspense fallback={<div className="reader-loading">Abriendo…</div>}>
+            <Reader
+              key={doc.id}
+              doc={doc}
+              folderName={folders?.find((f) => f.id === doc.folderId)?.name}
+              highlights={highlights}
+              labels={labels}
+              setLabels={setLabels}
+              pomo={pomo}
+              onBack={() => navigate('/apuntes')}
+            />
+          </Suspense>
         )
       ) : (
         <>
@@ -178,6 +186,7 @@ export function App() {
           ) : (
             <Landing docs={docs} folders={folders ?? []} theme={theme} onToggleTheme={toggleTheme} onOpen={open} />
           )}
+          {route !== 'login' && <Garden docs={docs} />}
           <BreakOverlay pomo={pomo} />
         </>
       )}
@@ -199,6 +208,7 @@ export function App() {
           <div>Soltá los PDFs para agregarlos</div>
         </div>
       )}
+      <TabTimer pomo={pomo} />
       <Toaster />
     </>
   );

@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { dayKey } from '../lib/dates';
 import { db, uid } from '../lib/db';
 import { lsGet, lsSet, useLocalState } from '../lib/storage';
@@ -96,11 +96,9 @@ export function usePomodoro() {
     count: todayLogs.length,
     minutes: todayLogs.reduce((sum, p) => sum + p.minutes, 0),
   };
-  const [now, setNow] = useState(Date.now());
 
   useEffect(() => lsSet('apuntes.pomodoro.state', timer), [timer]);
 
-  const remaining = timer.running ? Math.max(0, timer.endAt - now) : timer.remaining;
   const total = duration(timer.mode);
 
   const start = useCallback(() => {
@@ -140,24 +138,18 @@ export function usePomodoro() {
     }
   };
 
+  // Un solo temporizador al momento justo de terminar (no un reloj que redibuje toda la app).
+  // Al volver a la pestaña también se chequea: el navegador demora los timers en segundo plano.
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    if (timer.running && now >= timer.endAt) complete.current();
-  }, [now, timer.running, timer.endAt]);
-
-  useEffect(() => {
-    if (!timer.running) {
-      document.title = 'Tomapuntes';
-      return;
-    }
-    const m = Math.floor(remaining / 60_000);
-    const sec = Math.floor((remaining % 60_000) / 1000);
-    document.title = `${m}:${String(sec).padStart(2, '0')} · ${MODE_LABEL[timer.mode]}`;
-  }, [remaining, timer.running, timer.mode]);
+    if (!timer.running) return;
+    const check = () => Date.now() >= timer.endAt && complete.current();
+    const t = setTimeout(check, Math.max(0, timer.endAt - Date.now()) + 50);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [timer.running, timer.endAt]);
 
   const skipBreak = () => {
     setMode('focus');
@@ -178,8 +170,7 @@ export function usePomodoro() {
 
   return {
     ...timer,
-    remaining,
-    progress: total ? 1 - remaining / total : 0,
+    total,
     settings: s,
     today,
     overlay,
@@ -200,4 +191,23 @@ export type Pomodoro = ReturnType<typeof usePomodoro>;
 export function formatTime(ms: number) {
   const totalSec = Math.ceil(ms / 1000);
   return `${Math.floor(totalSec / 60)}:${String(totalSec % 60).padStart(2, '0')}`;
+}
+
+/** Tiempo restante al momento de llamarlo (usar junto con useTimerTick para que se actualice). */
+export function liveRemaining(p: { running: boolean; endAt: number; remaining: number }) {
+  return p.running ? Math.max(0, p.endAt - Date.now()) : p.remaining;
+}
+
+export function liveProgress(p: { running: boolean; endAt: number; remaining: number; total: number }) {
+  return p.total ? 1 - liveRemaining(p) / p.total : 0;
+}
+
+/** Redibuja solo el componente que lo usa, mientras el timer corre. */
+export function useTimerTick(active: boolean, ms = 250) {
+  const [, force] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(force, ms);
+    return () => clearInterval(id);
+  }, [active, ms]);
 }

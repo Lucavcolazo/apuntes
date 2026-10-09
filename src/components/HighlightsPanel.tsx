@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { COLOR_KEYS, COLORS, type Labels } from '../lib/colors';
 import type { ColorKey, Doc, Highlight } from '../lib/db';
 import { printHighlights, toMarkdown, type GroupBy } from '../lib/export';
-import { downloadBlob } from '../lib/files';
+import { downloadBlob } from '../lib/download';
 import { useLocalState } from '../lib/storage';
 import { Icon } from './Icon';
 import { toast } from './Toast';
@@ -47,6 +47,7 @@ export function HighlightsPanel({ doc, highlights, labels, setLabels, onJump, on
             <input
               key={k}
               className="chip chip-input"
+              aria-label={`Nombre de la etiqueta`}
               autoFocus
               defaultValue={labels[k]}
               style={{ '--c': COLORS[k].hex } as React.CSSProperties}

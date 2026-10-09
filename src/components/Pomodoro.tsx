@@ -1,5 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { formatTime, MODE_LABEL, type Mode, type Pomodoro as P, type PomodoroSettings } from '../hooks/usePomodoro';
+import {
+  formatTime,
+  liveProgress,
+  liveRemaining,
+  MODE_LABEL,
+  useTimerTick,
+  type Mode,
+  type Pomodoro as P,
+  type PomodoroSettings,
+} from '../hooks/usePomodoro';
 import { Icon } from './Icon';
 
 const MODES: Mode[] = ['focus', 'short', 'long'];
@@ -28,14 +37,16 @@ export function TomatoTimer({ pomo, compact = false }: { pomo: P; compact?: bool
   const [dragMinutes, setDragMinutes] = useState<number | null>(null);
   const settingsRef = useRef<HTMLDialogElement>(null);
 
-  const minutes = dragMinutes ?? pomo.remaining / 60_000;
+  useTimerTick(pomo.running);
+  const remaining = liveRemaining(pomo);
+  const minutes = dragMinutes ?? remaining / 60_000;
   const rotation = -Math.min(minutes, MAX_MIN) * 6;
   const done = pomo.overlay === 'done';
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     const svg = svgRef.current!;
     svg.setPointerCapture(e.pointerId);
-    drag.current = { last: angleAt(svg, e.clientX, e.clientY), minutes: pomo.remaining / 60_000, moved: 0 };
+    drag.current = { last: angleAt(svg, e.clientX, e.clientY), minutes: liveRemaining(pomo) / 60_000, moved: 0 };
   };
 
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -195,7 +206,7 @@ export function TomatoTimer({ pomo, compact = false }: { pomo: P; compact?: bool
         </g>
 
         <text x={CX} y={CY + 10} className="time" textAnchor="middle" dominantBaseline="central">
-          {dragMinutes != null ? `${dragMinutes}:00` : formatTime(pomo.remaining)}
+          {dragMinutes != null ? `${dragMinutes}:00` : formatTime(remaining)}
         </text>
         <text x={CX} y={CY + 42} className="hint" textAnchor="middle">
           {dragMinutes != null ? 'soltá' : pomo.running ? 'tocá: pausa' : 'girá · tocá'}
@@ -246,7 +257,8 @@ function TodayTomatoes({ count, minutes }: { count: number; minutes: number }) {
 export function MiniTomato({ pomo }: { pomo: P }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const clipId = useId();
-  const fill = pomo.progress;
+  useTimerTick(pomo.running);
+  const fill = liveProgress(pomo);
 
   return (
     <>
@@ -270,7 +282,7 @@ export function MiniTomato({ pomo }: { pomo: P }) {
           />
           <path d="M12 7 9 4.5M12 7l3-2.5M12 7V3.5" className="mt-leaf" />
         </svg>
-        <span className="tabular">{formatTime(pomo.remaining)}</span>
+        <span className="tabular">{formatTime(liveRemaining(pomo))}</span>
       </button>
       <dialog
         ref={dialogRef}
@@ -350,6 +362,7 @@ const TIPS = [
 
 export function BreakOverlay({ pomo }: { pomo: P }) {
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
+  useTimerTick(pomo.running && pomo.overlay !== 'none');
   if (pomo.overlay === 'none') return null;
   const done = pomo.overlay === 'done';
 
@@ -357,7 +370,7 @@ export function BreakOverlay({ pomo }: { pomo: P }) {
     <div className="break-overlay">
       <div className="break-card">
         <div className="break-kicker">{done ? 'Pausa terminada' : MODE_LABEL[pomo.mode]}</div>
-        <div className="break-time tabular">{done ? '¿Seguimos?' : formatTime(pomo.remaining)}</div>
+        <div className="break-time tabular">{done ? '¿Seguimos?' : formatTime(liveRemaining(pomo))}</div>
         <p className="break-tip">{done ? `Llevás ${pomo.today.count} ${pomo.today.count === 1 ? 'pomodoro' : 'pomodoros'} hoy.` : tip}</p>
         {done ? (
           <div className="break-actions">

@@ -52,7 +52,13 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
   const [selBox, setSelBox] = useState<{ x: number; y: number } | null>(null);
   const [popover, setPopover] = useState<{ id: string; x: number; y: number } | null>(null);
   const anchor = useRef<{ page: number; frac: number } | null>(null);
-  const [panelOpen, setPanelOpen] = useLocalState('apuntes.panelOpen', true);
+  // En el celular el panel tapa el PDF: arranca cerrado aunque en la compu lo dejes abierto.
+  const narrow = useRef(window.matchMedia?.('(max-width: 900px)').matches ?? false).current;
+  const [savedPanelOpen, setSavedPanelOpen] = useLocalState('apuntes.panelOpen', true);
+  const [panelOpenNarrow, setPanelOpenNarrow] = useState(false);
+  const panelOpen = narrow ? panelOpenNarrow : savedPanelOpen;
+  const setPanelOpen = narrow ? setPanelOpenNarrow : setSavedPanelOpen;
+  const [moreOpen, setMoreOpen] = useState(false);
   const [tone, setTone] = useLocalState<Tone>('apuntes.tone', 'cream');
   const [idle, setIdle] = useState(false);
   const [sidebar, setSidebar] = useState<SidebarTab | null>(null);
@@ -328,6 +334,13 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
   };
 
   useEffect(() => {
+    if (!moreOpen) return;
+    const close = (e: PointerEvent) => !(e.target as HTMLElement).closest('.reader-more') && setMoreOpen(false);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [moreOpen]);
+
+  useEffect(() => {
     if (!popover) return;
     const close = (e: PointerEvent) => {
       if (!(e.target as HTMLElement).closest('.popover, .viewer')) setPopover(null);
@@ -458,13 +471,13 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
       const overBar = (e.target as HTMLElement | null)?.closest?.('.reader-bar, .hl-panel, dialog');
       if (!overBar) t = setTimeout(() => setIdle(true), 2800);
     };
-    window.addEventListener('pointermove', wake);
-    window.addEventListener('keydown', wake);
+    // pointerdown: en el celu no hay mouse que se mueva; tocar la pantalla trae la barra.
+    const events = ['pointermove', 'pointerdown', 'keydown'] as const;
+    events.forEach((e) => window.addEventListener(e, wake));
     t = setTimeout(() => setIdle(true), 2800);
     return () => {
       clearTimeout(t);
-      window.removeEventListener('pointermove', wake);
-      window.removeEventListener('keydown', wake);
+      events.forEach((e) => window.removeEventListener(e, wake));
     };
   }, []);
 
@@ -498,6 +511,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
             className={`icon-btn sm ${sidebar === 'outline' ? 'active' : ''}`}
             onClick={() => setSidebar(sidebar === 'outline' ? null : 'outline')}
             title="Índice"
+            data-wide-only
           >
             <Icon name="list" size={16} />
           </button>
@@ -508,6 +522,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
               setFocusToken((t) => t + 1);
             }}
             title="Buscar (⌘F)"
+            data-wide-only
           >
             <Icon name="search" size={16} />
           </button>
@@ -573,6 +588,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
 
         <div className="bar-right">
           <button
+            data-wide-only
             className={`btn sm save-btn ${unsaved ? 'unsaved' : ''}`}
             onClick={save}
             disabled={saving}
@@ -590,11 +606,67 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
           <button
             className={`icon-btn ${panelOpen ? 'active' : ''}`}
             onClick={() => setPanelOpen(!panelOpen)}
+            aria-label="Subrayados"
             title="Subrayados"
           >
             <Icon name="sidebarRight" />
             {highlights.length > 0 && <span className="badge">{highlights.length}</span>}
           </button>
+
+          {/* En el celu: lo que no entra en la barra va acá. */}
+          <div className="reader-more" data-narrow-only>
+            <button
+              className={`icon-btn ${moreOpen ? 'active' : ''}`}
+              onClick={() => setMoreOpen(!moreOpen)}
+              aria-label="Más opciones"
+              aria-expanded={moreOpen}
+            >
+              <Icon name="more" />
+              {unsaved && <span className="badge dot" />}
+            </button>
+            {moreOpen && (
+              <div className="menu more-menu" role="menu" onClick={() => setMoreOpen(false)}>
+                <button role="menuitem" onClick={() => setSidebar('outline')}>
+                  <Icon name="list" size={16} /> Índice
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setSidebar('search');
+                    setFocusToken((t) => t + 1);
+                  }}
+                >
+                  <Icon name="search" size={16} /> Buscar en el PDF
+                </button>
+                <button role="menuitem" onClick={() => setTone(NEXT_TONE[tone])}>
+                  <Icon name={tone === 'night' ? 'moon' : 'sun'} size={16} /> Páginas: {TONES[tone]}
+                </button>
+                <div className="menu-row">
+                  <button role="menuitem" onClick={() => zoomStep(-1)} aria-label="Alejar">
+                    <Icon name="minus" size={16} />
+                  </button>
+                  <span className="tabular">{Math.round(scale * 100)}%</span>
+                  <button role="menuitem" onClick={() => zoomStep(1)} aria-label="Acercar">
+                    <Icon name="plus" size={16} />
+                  </button>
+                  <button role="menuitem" onClick={fitWidth} aria-label="Ajustar al ancho">
+                    <Icon name="fit" size={16} />
+                  </button>
+                </div>
+                <div className="menu-row">
+                  <button role="menuitem" onClick={undo} disabled={!history.canUndo} aria-label="Deshacer">
+                    <Icon name="undo" size={16} />
+                  </button>
+                  <button role="menuitem" onClick={redo} disabled={!history.canRedo} aria-label="Rehacer">
+                    <Icon name="redo" size={16} />
+                  </button>
+                </div>
+                <button role="menuitem" onClick={save} disabled={saving}>
+                  <Icon name="save" size={16} /> {unsaved ? 'Guardar subrayados en el PDF' : 'Guardado en el PDF'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

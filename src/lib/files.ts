@@ -1,4 +1,8 @@
 import { buildAnnotatedPdf, readPdfHighlights, stripHighlights } from './annotations';
+import { downloadBlob } from './download';
+import { sha256 } from './hash';
+
+export { downloadBlob, sha256 };
 import { db, sortHighlights, uid, type Doc } from './db';
 import { loadPdf, type PDFDocumentProxy } from './pdf';
 
@@ -120,12 +124,6 @@ async function writeToHandle(handle: FileSystemFileHandle, bytes: Uint8Array<Arr
   await writable.close();
 }
 
-/** Huella SHA-256 en hexadecimal: identifica el archivo sin importar el nombre. */
-export async function sha256(blob: Blob) {
-  const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 async function renderThumb(pdf: PDFDocumentProxy) {
   const page = await pdf.getPage(1);
   const base = page.getViewport({ scale: 1 });
@@ -175,13 +173,4 @@ export async function autoSaveToOriginal(doc: Doc) {
   await writeToHandle(handle!, bytes);
   await db.docs.update(doc.id, { savedAt });
   return true;
-}
-
-export function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

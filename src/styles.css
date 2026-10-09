@@ -11,12 +11,18 @@
   --surface-2: #ece5d6;
   --ink: #2a251f;
   --ink-2: #554d42;
-  --muted: #8b8274;
+  --muted: #6b6357;
   --line: #e0d7c6;
   --primary: #2a251f;
   --primary-ink: #faf7f0;
   --shadow: 0 1px 2px rgb(60 45 25 / 0.06), 0 8px 24px rgb(60 45 25 / 0.08);
   --tomato: #d9472f;
+  /* Para texto o fondos con texto blanco: el tomate de marca no llega a 4.5:1. */
+  --tomato-ink: #b23a22;
+  --pill: #c43d26;
+  --kind-tp: #2c6aa6;
+  --kind-final: #6d45b0;
+  --ok-ink: #4a7d2a;
   --danger: #b4412f;
   --focus: 0 0 0 3px rgb(42 37 31 / 0.18);
 
@@ -34,12 +40,17 @@
   --surface-2: #2c2823;
   --ink: #eee7d9;
   --ink-2: #c7bdac;
-  --muted: #8e8576;
+  --muted: #a0978a;
   --line: #36312a;
   --primary: #eee7d9;
   --primary-ink: #1a1815;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px rgb(0 0 0 / 0.35);
   --tomato: #e8664a;
+  --tomato-ink: #f08a70;
+  --pill: #c43d26;
+  --kind-tp: #6aaee8;
+  --kind-final: #b394ea;
+  --ok-ink: #8fc45f;
   --danger: #e57b65;
   --focus: 0 0 0 3px rgb(238 231 217 / 0.2);
   color-scheme: dark;
@@ -429,7 +440,12 @@ kbd {
   font-weight: 650;
 }
 .menu button.current::after {
-  content: '✓';
+  content: '';
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5 10 17 19 7'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5 10 17 19 7'/%3E%3C/svg%3E") center / contain no-repeat;
   margin-left: auto;
 }
 .menu button.new {
@@ -1048,8 +1064,12 @@ select {
   --surface-2: #2a2622;
   --ink: #ece4d4;
   --ink-2: #c3b9a7;
-  --muted: #8a8172;
+  --muted: #9d9485;
   --line: #34302a;
+  --tomato-ink: #f08a70;
+  --kind-tp: #6aaee8;
+  --kind-final: #b394ea;
+  --ok-ink: #8fc45f;
   --primary: #ece4d4;
   --primary-ink: #141210;
   --danger: #e57b65;
@@ -1091,7 +1111,8 @@ select {
   pointer-events: none;
 }
 /* Con un menú de la barra abierto (sonidos), la barra no se esconde. */
-.reader.idle .reader-bar:has(.sounds-panel) {
+.reader.idle .reader-bar:has(.sounds-panel),
+.reader.idle .reader-bar:has(.more-menu) {
   opacity: 1;
   transform: none;
   pointer-events: auto;
@@ -1612,15 +1633,15 @@ select {
   position: relative;
   transition: background-color 0.15s;
 }
-.hl-item::before {
+.hl-item .hl-meta::before {
   content: '';
-  position: absolute;
-  left: 6px;
-  top: 12px;
-  bottom: 12px;
-  width: 3px;
-  border-radius: 2px;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  border-radius: 50%;
   background: var(--c);
+  vertical-align: 0;
 }
 .hl-item:hover {
   background: var(--surface-2);
@@ -1770,11 +1791,18 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Sin desplazamientos, giros ni rebotes: las animaciones van directo a su estado final… */
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  /* …pero los cambios de estado se siguen notando con un fundido corto, sin movimiento. */
+  * {
+    transition-property: opacity, color, background-color, border-color, box-shadow !important;
+    transition-duration: 150ms !important;
   }
 }
 
@@ -1798,7 +1826,7 @@ select {
   text-decoration: none;
 }
 .brand-link img {
-  transition: transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .brand-link:hover img {
   transform: rotate(-12deg) scale(1.08);
@@ -2078,12 +2106,6 @@ a.btn {
   color: var(--ink-2);
 }
 
-.week-card {
-  grid-row: span 1;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
 .hero-figure {
   display: flex;
   flex-direction: column;
@@ -2122,76 +2144,7 @@ a.btn {
   font-size: 12px;
 }
 
-/* Gráfico semanal */
-.week-chart {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.chart-area {
-  display: grid;
-  grid-template-columns: 30px 1fr;
-  height: 170px;
-}
-.y-axis {
-  position: relative;
-}
-.y-axis span {
-  position: absolute;
-  right: 8px;
-  transform: translateY(50%);
-  font-size: 10.5px;
-  color: var(--muted);
-}
-.plot {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  align-items: end;
-}
-.gridline {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--line);
-}
-.plot-empty {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 12.5px;
-}
-.col {
-  position: relative;
-  height: 100%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  border-radius: 8px;
-}
-.col:hover,
-.col.hover {
-  background: color-mix(in srgb, var(--ink) 4%, transparent);
-}
-.bar {
-  position: relative;
-  width: min(24px, 60%);
-  border-radius: 4px 4px 0 0;
-  background: var(--tomato);
-  transition: height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.bar-cap {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  font-weight: 650;
-  color: var(--ink);
-}
+/* Burbuja de detalle (mapa de calor) */
 .tooltip {
   position: absolute;
   bottom: calc(100% + 8px);
@@ -2213,26 +2166,6 @@ a.btn {
 .tooltip strong {
   font-size: 13px;
 }
-.col .tooltip {
-  bottom: auto;
-  top: 0;
-  transform: translate(-50%, -100%);
-}
-.x-axis {
-  display: grid;
-  grid-template-columns: 30px repeat(7, 1fr);
-  font-size: 11px;
-  color: var(--muted);
-  text-align: center;
-}
-.x-axis::before {
-  content: '';
-}
-.x-axis .today {
-  color: var(--ink);
-  font-weight: 700;
-}
-
 /* Seguí leyendo */
 .continue-card {
   grid-column: 1;
@@ -3941,7 +3874,6 @@ a.btn {
   text-decoration: none;
   background: var(--surface-2);
   color: var(--ink);
-  border-left: 3px solid currentColor;
   min-width: 0;
 }
 .cal-event span {
@@ -4051,7 +3983,7 @@ a.btn {
   font-size: 15px;
 }
 .nav-brand img {
-  transition: transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .nav-brand:hover img {
   transform: rotate(-12deg) scale(1.08);
@@ -4271,4 +4203,355 @@ a.btn {
   border: 1px solid var(--muted);
   background: var(--bg);
   outline: none;
+}
+
+/* ==========================================================================
+   Contraste: texto sobre tomate y etiquetas de color usan sus variantes legibles
+   ========================================================================== */
+.kind-parcial {
+  color: var(--tomato-ink);
+}
+.kind-tp {
+  color: var(--kind-tp);
+  background: color-mix(in srgb, var(--kind-tp) 14%, transparent);
+}
+.kind-final {
+  color: var(--kind-final);
+  background: color-mix(in srgb, var(--kind-final) 14%, transparent);
+}
+.pill,
+.exam-badge.soon,
+.checklist li.urgent .check-date,
+.cal-day.today .cal-num,
+.avatar {
+  background: var(--pill);
+  color: #fff;
+}
+.login-hint.ok {
+  color: var(--ok-ink);
+}
+
+/* Eventos del calendario: un punto del color del tipo en vez de borde lateral. */
+.cal-event::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.cal-event.kind-tp {
+  color: var(--kind-tp);
+}
+.cal-event.kind-final {
+  color: var(--kind-final);
+}
+.cal-event.kind-parcial {
+  color: var(--tomato-ink);
+}
+.hl-item {
+  padding-left: 10px;
+}
+
+.goal-ring .goal-check {
+  fill: none;
+  stroke: #6ea543;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ==========================================================================
+   Lector en el celular: barra con lo esencial y menú "Más"
+   ========================================================================== */
+[data-narrow-only] {
+  display: none;
+}
+.reader-more {
+  position: relative;
+}
+.badge.dot {
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  top: 7px;
+  right: 7px;
+  background: var(--tomato);
+}
+.more-menu {
+  left: auto;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 250px;
+  background: #1f1c19;
+  border-color: rgb(255 255 255 / 0.08);
+}
+.more-menu > button {
+  height: 44px;
+}
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+}
+.menu-row button {
+  flex: 1;
+  justify-content: center;
+  height: 44px;
+}
+.menu-row span {
+  min-width: 46px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+@media (max-width: 720px) {
+  [data-wide-only] {
+    display: none !important;
+  }
+  [data-narrow-only] {
+    display: block;
+  }
+  .reader-bar {
+    grid-template-columns: auto 1fr auto;
+    gap: 4px;
+    height: 56px;
+    padding: 0 6px;
+  }
+  .reader-bar .bar-center {
+    justify-content: center;
+    gap: 0;
+  }
+  .reader-bar .bar-center > :not(.page-nav) {
+    display: none;
+  }
+  .reader-bar .bar-right {
+    gap: 2px;
+  }
+  .reader-bar .back {
+    width: 44px;
+    padding: 0;
+    font-size: 0;
+    gap: 0;
+  }
+  .mini-tomato {
+    padding: 0 8px 0 6px;
+  }
+  .hl-panel,
+  .reader-sidebar {
+    width: 100vw;
+    margin-top: 56px;
+  }
+}
+
+/* ==========================================================================
+   Con el dedo: objetivos de toque de al menos ~44 px
+   ========================================================================== */
+@media (pointer: coarse) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .icon-btn.sm,
+  .icon-btn.xs {
+    width: 40px;
+    height: 40px;
+  }
+  .btn,
+  .btn.sm {
+    min-height: 44px;
+  }
+  .mode-tabs button,
+  .chip,
+  .folder-tab,
+  .eval-kinds .kind,
+  .nav-links a {
+    min-height: 44px;
+  }
+  .mini-tomato {
+    height: 40px;
+  }
+  .page-nav input {
+    height: 40px;
+  }
+  .checklist input[type='checkbox'],
+  .note-list .check input,
+  .picker-item input,
+  .check input {
+    width: 24px;
+    height: 24px;
+  }
+  .book-actions .icon-btn.xs {
+    width: 40px;
+    height: 40px;
+  }
+  .search-hit,
+  .outline-item,
+  .menu button {
+    min-height: 44px;
+  }
+  .swatch {
+    width: 32px;
+    height: 32px;
+  }
+}
+.cal-day:focus-visible {
+  outline: 2px solid var(--ink-2);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+.reader-loading {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #0e0d0b;
+  color: #9d9485;
+}
+
+/* Barra centrada: logo a la izquierda, secciones al medio, tema y cuenta a la derecha. */
+.app-nav-inner {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+}
+.nav-links {
+  margin-left: 0;
+  justify-self: center;
+}
+.nav-brand {
+  justify-self: start;
+}
+.nav-end {
+  justify-self: end;
+  margin-left: 0;
+}
+
+/* ==========================================================================
+   Footer: "Tu huerta"
+   ========================================================================== */
+.garden {
+  margin-top: 48px;
+  overflow: hidden;
+}
+.garden-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+.garden-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 12.5px;
+  margin-bottom: 4px;
+}
+.garden-caption strong {
+  font-size: 14px;
+  letter-spacing: -0.02em;
+}
+.garden-bed {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  min-height: 125px;
+  margin-bottom: -2px;
+}
+.garden-plant {
+  width: 76px;
+  height: 125px;
+  flex: none;
+  margin-right: -12px;
+  overflow: visible;
+  transform-origin: 50% 100%;
+  animation: sprout 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.garden-plant:hover .g-stem,
+.garden-plant:hover .g-leaf {
+  filter: brightness(1.12);
+}
+@keyframes sprout {
+  from {
+    transform: scaleY(0.2);
+    opacity: 0;
+  }
+}
+.garden-more {
+  align-self: center;
+  margin-left: 24px;
+  font-size: 12px;
+}
+.garden-ground {
+  height: 14px;
+  border-radius: 7px 7px 0 0;
+  background: color-mix(in srgb, #7a5236 70%, var(--bg));
+  box-shadow: inset 0 3px 0 rgb(255 255 255 / 0.08);
+}
+:root[data-theme='dark'] .garden-ground {
+  background: #3a2a1e;
+}
+.garden-hover {
+  min-height: 34px;
+  margin: 0;
+  padding: 10px 0 14px;
+  font-size: 12px;
+}
+
+.g-stem {
+  fill: none;
+  stroke: #4f7d32;
+  stroke-width: 3.6;
+  stroke-linecap: round;
+}
+.g-leaf {
+  fill: #6ea543;
+}
+.g-leaf.small {
+  fill: #5d9438;
+}
+.g-stalk {
+  fill: none;
+  stroke: #4f7d32;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.g-tomato {
+  fill: #8fbf5a;
+}
+.g-fruit.ripe .g-tomato {
+  fill: #e2492f;
+}
+.g-gloss {
+  fill: #fff;
+  opacity: 0.45;
+}
+.g-calyx {
+  fill: none;
+  stroke: #3f6e27;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.g-seed {
+  fill: #c7a46a;
+}
+.garden-plant.empty {
+  animation: none;
+}
+
+@media (max-width: 720px) {
+  .garden-inner {
+    padding: 0 16px;
+  }
+  .garden-plant {
+    width: 52px;
+    height: 86px;
+    margin-right: -10px;
+  }
+  .garden-bed {
+    min-height: 86px;
+  }
 }

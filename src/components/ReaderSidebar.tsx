@@ -103,6 +103,7 @@ export function ReaderSidebar({ pdf, tab, onTab, page, onGoPage, onHits, onClose
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar en este PDF"
+              aria-label="Buscar en este PDF"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();

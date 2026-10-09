@@ -249,7 +249,11 @@ function GoalTile({ todayMs, goal, onGoal }: { todayMs: number; goal: number; on
         <svg width="54" height="54" viewBox="0 0 54 54" className="goal-ring" role="img" aria-label={`${Math.round(pct * 100)}% de la meta`}>
           <circle cx="27" cy="27" r="22" className="track" />
           <circle cx="27" cy="27" r="22" className="bar" strokeDasharray={RING} strokeDashoffset={RING * (1 - pct)} transform="rotate(-90 27 27)" />
-          <text x="27" y="27" textAnchor="middle" dominantBaseline="central">{reached ? '✓' : `${Math.round(pct * 100)}%`}</text>
+          {reached ? (
+            <path d="M19.5 27.5 25 33l9.5-11" className="goal-check" />
+          ) : (
+            <text x="27" y="27" textAnchor="middle" dominantBaseline="central">{`${Math.round(pct * 100)}%`}</text>
+          )}
         </svg>
       </div>
       <label className="muted tile-hint goal-select">
