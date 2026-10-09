@@ -1,31 +1,56 @@
 import { useEffect, useState } from 'react';
 import { Link, navigate } from '../lib/router';
-import { googleEnabled, sendMagicLink, signInWithGoogle, useAuth, verifyCode } from '../lib/supabase';
+import {
+  authErrorMessage,
+  googleEnabled,
+  sendMagicLink,
+  sendPasswordReset,
+  signInWithGoogle,
+  signInWithPassword,
+  signUpWithPassword,
+  updatePassword,
+  useAuth,
+  verifyCode,
+} from '../lib/supabase';
 import { toast } from './Toast';
 
-type Stage = 'form' | 'sending' | 'sent';
+type Mode = 'password' | 'magic';
+type Intent = 'signin' | 'signup';
+/** Pantallas después de enviar algo por mail. */
+type Sent = null | 'magic' | 'confirm' | 'reset';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const MIN_PASSWORD = 6;
 const RESEND_SECONDS = 60;
 
-/** "Entrá a tu huerta": la planta crece con cada letra del mail y el tomate madura cuando es válido. */
+/** "Entrá a tu huerta": la planta crece mientras completás los datos y el tomate madura cuando están bien. */
 export function Login() {
   const { user } = useAuth();
+  const recovering = new URLSearchParams(location.search).has('recuperar');
+  const [mode, setMode] = useState<Mode>('password');
+  const [intent, setIntent] = useState<Intent>('signin');
   const [email, setEmail] = useState('');
-  const [stage, setStage] = useState<Stage>('form');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState<Sent>(null);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [cooldown, setCooldown] = useState(0);
 
-  const valid = EMAIL.test(email.trim());
-  const growth = Math.min(1, email.length / 16);
+  const emailOk = EMAIL.test(email.trim());
+  const passwordOk = password.length >= MIN_PASSWORD;
+  const ready = mode === 'magic' ? emailOk : emailOk && passwordOk;
+  const typed = mode === 'magic' ? email.length : email.length + password.length * 1.5;
+  const growth = Math.min(1, typed / (mode === 'magic' ? 16 : 26));
 
+  // Con sesión iniciada (y sin estar cambiando la contraseña), adentro.
   useEffect(() => {
-    if (user) {
+    if (user && !recovering) {
       toast('¡Adentro! Tus apuntes ahora se guardan en tu cuenta');
       navigate('/apuntes', { replace: true });
     }
-  }, [user]);
+  }, [user, recovering]);
 
   useEffect(() => {
     if (!cooldown) return;
@@ -33,33 +58,51 @@ export function Login() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  const send = async () => {
-    if (!valid) return;
+  const run = async (fn: () => Promise<void>) => {
     setError(null);
-    setStage('sending');
+    setBusy(true);
     try {
-      await sendMagicLink(email.trim());
-      // Dejamos que el tomate termine de caer antes de cambiar de pantalla.
-      setTimeout(() => setStage('sent'), 900);
-      setCooldown(RESEND_SECONDS);
+      await fn();
     } catch (e) {
-      setStage('form');
-      const msg = e instanceof Error ? e.message : '';
-      setError(
-        /rate|limit|seconds/i.test(msg)
-          ? 'Pediste muchos links seguidos. Esperá un minuto y probá de nuevo.'
-          : 'No pudimos mandar el mail. Revisá la dirección e intentá otra vez.',
-      );
+      setError(authErrorMessage(e));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const enterCode = async () => {
-    try {
-      await verifyCode(email.trim(), code.trim());
-    } catch {
-      setError('Ese código no funcionó (o ya venció). Pedí uno nuevo.');
-    }
+  const submit = () =>
+    run(async () => {
+      const mail = email.trim();
+      if (mode === 'magic') {
+        await sendMagicLink(mail);
+        setCooldown(RESEND_SECONDS);
+        setTimeout(() => setSent('magic'), 700);
+      } else if (intent === 'signin') {
+        await signInWithPassword(mail, password);
+      } else {
+        const signedIn = await signUpWithPassword(mail, password);
+        if (!signedIn) setTimeout(() => setSent('confirm'), 700);
+      }
+    });
+
+  const forgot = () => {
+    if (!emailOk) return setError('Escribí tu mail arriba y tocá de nuevo.');
+    void run(async () => {
+      await sendPasswordReset(email.trim());
+      setSent('reset');
+    });
   };
+
+  const picked = busy || !!sent;
+  const title = recovering
+    ? 'Nueva contraseña'
+    : sent === 'magic' || sent === 'reset'
+      ? 'Revisá tu mail'
+      : sent === 'confirm'
+        ? 'Confirmá tu mail'
+        : intent === 'signup' && mode === 'password'
+          ? 'Plantá tu cuenta'
+          : 'Entrá a tu huerta';
 
   return (
     <div className="login">
@@ -68,102 +111,199 @@ export function Login() {
       </Link>
 
       <div className="login-stage">
-        <Plant growth={stage === 'form' ? growth : 1} ripe={valid || stage !== 'form'} picked={stage !== 'form'} />
+        <Plant growth={sent || recovering ? 1 : growth} ripe={ready || !!sent || recovering} picked={picked && !recovering} />
 
         <div className="login-card">
-          {stage !== 'sent' ? (
+          <h1>{title}</h1>
+
+          {recovering ? (
+            <NewPassword hasSession={!!user} />
+          ) : sent ? (
+            <div className="login-sent">
+              <Envelope />
+              <p className="muted">
+                {sent === 'reset' ? 'Te mandamos un link para cambiarla a ' : 'Abrí el link que mandamos a '}
+                <strong>{email.trim()}</strong>
+              </p>
+              {sent === 'magic' && (
+                <details className="login-code">
+                  <summary>¿Te llegó un código?</summary>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void run(() => verifyCode(email.trim(), code.trim()));
+                    }}
+                  >
+                    <input
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      placeholder="123456"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                      aria-label="Código de 6 dígitos"
+                    />
+                    <button className="btn primary" disabled={code.length !== 6 || busy}>
+                      Entrar
+                    </button>
+                  </form>
+                </details>
+              )}
+              {error && <p className="login-error">{error}</p>}
+              <p className="muted login-small">
+                {sent === 'magic' && (
+                  <>
+                    <button className="link-btn" disabled={cooldown > 0 || busy} onClick={() => void submit()}>
+                      {cooldown ? `Reenviar en ${cooldown}s` : 'Reenviar'}
+                    </button>
+                    {' · '}
+                  </>
+                )}
+                <button
+                  className="link-btn"
+                  onClick={() => {
+                    setSent(null);
+                    setCode('');
+                    setError(null);
+                  }}
+                >
+                  Volver
+                </button>
+              </p>
+            </div>
+          ) : (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                void send();
+                if (ready && !busy) void submit();
               }}
             >
-              <h1>Entrá a tu huerta</h1>
-              <p className="muted">
-                Con tu cuenta, tus apuntes, subrayados y estadísticas te siguen a la compu y al celu. Sin contraseñas: te
-                mandamos un link por mail.
-              </p>
-              <label className="login-field">
-                <span>Tu mail</span>
-                <input
-                  type="email"
-                  autoComplete="email"
-                  inputMode="email"
-                  placeholder="vos@mail.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoFocus
-                  disabled={stage === 'sending'}
-                />
-              </label>
-              <span className={`login-hint ${valid ? 'ok' : ''}`}>
-                {valid ? 'El tomate está maduro. ¡A cosechar!' : email ? 'Seguí regando…' : 'Escribí tu mail y mirá la planta'}
-              </span>
+              <div className="mode-tabs login-modes" role="tablist" aria-label="Cómo entrar">
+                <button type="button" role="tab" aria-selected={mode === 'password'} className={mode === 'password' ? 'active' : ''} onClick={() => setMode('password')}>
+                  Contraseña
+                </button>
+                <button type="button" role="tab" aria-selected={mode === 'magic'} className={mode === 'magic' ? 'active' : ''} onClick={() => setMode('magic')}>
+                  Link mágico
+                </button>
+              </div>
+
+              <input
+                className="login-input"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                placeholder="Mail"
+                aria-label="Mail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoFocus
+              />
+              {mode === 'password' && (
+                <div className="password-field">
+                  <input
+                    className="login-input"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete={intent === 'signup' ? 'new-password' : 'current-password'}
+                    placeholder={intent === 'signup' ? `Contraseña (mín. ${MIN_PASSWORD})` : 'Contraseña'}
+                    aria-label="Contraseña"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="show-password"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    {showPassword ? 'Ocultar' : 'Ver'}
+                  </button>
+                </div>
+              )}
+
               {error && <p className="login-error">{error}</p>}
-              <button className="btn primary big login-submit" disabled={!valid || stage === 'sending'}>
-                {stage === 'sending' ? 'Cosechando…' : 'Mandame el link mágico'}
+
+              <button className="btn primary big login-submit" disabled={!ready || busy}>
+                {busy
+                  ? 'Cosechando…'
+                  : mode === 'magic'
+                    ? 'Mandame el link'
+                    : intent === 'signup'
+                      ? 'Crear cuenta'
+                      : 'Entrar'}
               </button>
+
+              {mode === 'password' && (
+                <div className="login-links">
+                  <button type="button" className="link-btn" onClick={() => setIntent(intent === 'signin' ? 'signup' : 'signin')}>
+                    {intent === 'signin' ? 'Crear cuenta' : 'Ya tengo cuenta'}
+                  </button>
+                  {intent === 'signin' && (
+                    <button type="button" className="link-btn muted-link" onClick={forgot}>
+                      ¿Te olvidaste la contraseña?
+                    </button>
+                  )}
+                </div>
+              )}
+
               {googleEnabled && (
                 <button type="button" className="btn ghost big login-google" onClick={() => void signInWithGoogle()}>
                   <GoogleMark /> Continuar con Google
                 </button>
               )}
             </form>
-          ) : (
-            <div className="login-sent">
-              <Envelope />
-              <h1>¡Revisá tu mail!</h1>
-              <p className="muted">
-                Te mandamos un link a <strong>{email.trim()}</strong>. Abrilo en este mismo dispositivo y entrás directo.
-              </p>
-              <details className="login-code">
-                <summary>¿Te llegó un código de 6 dígitos?</summary>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void enterCode();
-                  }}
-                >
-                  <input
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    placeholder="123456"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                  />
-                  <button className="btn primary" disabled={code.length !== 6}>
-                    Entrar
-                  </button>
-                </form>
-              </details>
-              {error && <p className="login-error">{error}</p>}
-              <p className="muted login-small">
-                ¿No llegó? Mirá en spam o{' '}
-                <button className="link-btn" disabled={cooldown > 0} onClick={() => void send()}>
-                  {cooldown ? `reenviá en ${cooldown}s` : 'reenvialo'}
-                </button>
-                . ·{' '}
-                <button
-                  className="link-btn"
-                  onClick={() => {
-                    setStage('form');
-                    setCode('');
-                    setError(null);
-                  }}
-                >
-                  Cambiar mail
-                </button>
-              </p>
-            </div>
           )}
 
-          <Link to="/" className="login-skip">
-            Seguir sin cuenta →
-          </Link>
+          {!recovering && (
+            <Link to="/" className="login-skip">
+              Seguir sin cuenta →
+            </Link>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+/** Al volver del mail de "cambiar contraseña": se elige la nueva y adentro. */
+function NewPassword({ hasSession }: { hasSession: boolean }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (!hasSession) {
+    return <p className="muted">Abriendo el link…</p>;
+  }
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        try {
+          await updatePassword(password);
+          toast('Listo, contraseña cambiada');
+          navigate('/apuntes', { replace: true });
+        } catch (err) {
+          setError(authErrorMessage(err));
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <input
+        className="login-input"
+        type="password"
+        autoComplete="new-password"
+        placeholder={`Nueva contraseña (mín. ${MIN_PASSWORD})`}
+        aria-label="Nueva contraseña"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        autoFocus
+      />
+      {error && <p className="login-error">{error}</p>}
+      <button className="btn primary big login-submit" disabled={password.length < MIN_PASSWORD || busy}>
+        Guardar contraseña
+      </button>
+    </form>
   );
 }
 
