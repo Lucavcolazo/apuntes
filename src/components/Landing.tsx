@@ -171,7 +171,7 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
           <Tile
             label="Subrayados"
             value={String(live.length)}
-            hint={`en ${new Set(live.map((h) => h.docId)).size} ${new Set(live.map((h) => h.docId)).size === 1 ? 'libro' : 'libros'}`}
+            hint={subrayadosHint(live)}
           />
         </div>
 
@@ -214,6 +214,12 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
       </div>
     </>
   );
+}
+
+function subrayadosHint(list: { docId: string }[]) {
+  const books = new Set(list.map((h) => h.docId)).size;
+  if (!books) return 'Todavía ninguno';
+  return `en ${books} ${books === 1 ? 'libro' : 'libros'}`;
 }
 
 function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
