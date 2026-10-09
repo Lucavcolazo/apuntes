@@ -34,7 +34,6 @@ export function AccountButton() {
     <div className="account" ref={ref}>
       <button className="avatar" onClick={() => setOpen(!open)} title={email} aria-expanded={open}>
         {email.charAt(0).toUpperCase() || '?'}
-        <span className={`sync-dot ${sync.status}`} />
       </button>
       {open && (
         <div className="menu account-menu" role="menu">
