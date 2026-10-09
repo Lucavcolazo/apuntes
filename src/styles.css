@@ -4289,3 +4289,39 @@ a.btn {
 .timer-card {
   top: 82px;
 }
+
+/* Barra sin borde; la sección activa se ilumina (sin recuadro). */
+.app-nav {
+  border-bottom: 0;
+}
+.nav-links a,
+.nav-links a:hover,
+.nav-links a.active {
+  background: transparent;
+}
+.nav-links a {
+  transition: color 0.2s, text-shadow 0.2s;
+}
+.nav-links a svg {
+  transition: color 0.2s, filter 0.2s;
+}
+.nav-links a:hover {
+  color: var(--ink-2);
+}
+.nav-links a.active {
+  color: var(--ink);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--tomato) 55%, transparent);
+}
+.nav-links a.active svg {
+  color: var(--tomato);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tomato) 70%, transparent));
+}
+.nav-links a.active::after {
+  content: none;
+}
+.page-head h1 {
+  margin: 0;
+}
+.page-head {
+  align-items: center;
+}

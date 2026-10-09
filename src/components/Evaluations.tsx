@@ -52,10 +52,7 @@ export function Evaluations({ evalId, docs, folders, onOpenDoc }: Props) {
   return (
     <div className="home">
       <header className="page-head">
-        <div>
-          <h1>Parciales y TPs</h1>
-          <p className="muted">Anotá lo que se viene y conectá los apuntes que entran.</p>
-        </div>
+        <h1>Parciales y TPs</h1>
         <div className="head-actions">
           <button className="btn primary" onClick={() => void create()}>
             <Icon name="plus" size={16} /> Nuevo parcial o TP

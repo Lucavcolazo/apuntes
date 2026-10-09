@@ -54,10 +54,7 @@ export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }:
   return (
     <div className="home">
       <header className="page-head">
-        <div>
-          <h1>Mis apuntes</h1>
-          <p className="muted">Prepará el tomate, elegí qué leer y a concentrarse.</p>
-        </div>
+        <h1>Mis apuntes</h1>
         <div className="head-actions">
           {current && dueCount > 0 && (
             <Link to={`/repaso?carpeta=${current.id}`} className="btn ghost">
@@ -74,7 +71,7 @@ export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }:
       <div className="home-grid">
         <section className="timer-card" aria-labelledby="timer-title">
           <h2 id="timer-title" className="step">
-            <span>1</span> Prepará el tomate
+            <span>1</span> Seleccioná tu tiempo
           </h2>
           <TomatoTimer pomo={pomo} />
         </section>
