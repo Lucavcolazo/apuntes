@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { daysUntil } from '../lib/dates';
 import { db } from '../lib/db';
+import { useHeroDone } from '../lib/hero';
 import { Link } from '../lib/router';
 import { AccountButton } from './Account';
 import { Icon, type IconName } from './Icon';
@@ -19,7 +20,9 @@ interface Props {
  * (el hero tiene su propia navegación); en el resto está siempre.
  */
 export function AppNav({ route, theme, onToggleTheme }: Props) {
-  const reveal = route === 'landing';
+  // Mientras está el hero, la barra aparece al bajar; sin hero, está siempre.
+  const heroGone = useHeroDone();
+  const reveal = route === 'landing' && !heroGone;
   const [shown, setShown] = useState(!reveal);
 
   useEffect(() => {

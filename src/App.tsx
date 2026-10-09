@@ -7,6 +7,7 @@ import { Landing } from './components/Landing';
 import { Library, type FolderView } from './components/Library';
 import { Login } from './components/Login';
 import { BreakOverlay } from './components/Pomodoro';
+import { PageSkeleton } from './components/Skeleton';
 import { toast, Toaster } from './components/Toast';
 import { TabTimer } from './hooks/TabTimer';
 import { usePomodoro } from './hooks/usePomodoro';
@@ -19,8 +20,6 @@ import { useLocalState } from './lib/storage';
 // El lector trae pdf.js y pdf-lib: se carga recién al abrir un libro.
 const Reader = lazy(() => import('./components/Reader').then((m) => ({ default: m.Reader })));
 const loadFiles = () => import('./lib/files');
-
-const prefersDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
 export function App() {
   const path = useLocation().split('#')[0];
@@ -37,6 +36,7 @@ export function App() {
 
   const loadedDocs = useLiveQuery(() => db.docs.toArray());
   const docs = loadedDocs ?? [];
+  const loading = loadedDocs === undefined;
   const folders = useLiveQuery(() => db.folders.toArray());
   const [savedView, setView] = useLocalState<FolderView>('apuntes.folder', 'all');
   // Si la carpeta guardada ya no existe, mostramos "Todos".
@@ -53,7 +53,8 @@ export function App() {
     [],
   );
   const [labels, setLabels] = useLocalState<Labels>('apuntes.labels', DEFAULT_LABELS);
-  const [theme, setTheme] = useLocalState<'light' | 'dark'>('apuntes.theme', prefersDark() ? 'dark' : 'light');
+  // Claro por defecto; si alguien eligió oscuro, se respeta.
+  const [theme, setTheme] = useLocalState<'light' | 'dark'>('apuntes.theme', 'light');
   const pomo = usePomodoro();
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -148,7 +149,13 @@ export function App() {
     <>
       {route === 'reader' ? (
         doc && (
-          <Suspense fallback={<div className="reader-loading">Abriendo…</div>}>
+          <Suspense
+            fallback={
+              <div className="reader-loading">
+                <PageSkeleton label="Abriendo el PDF…" />
+              </div>
+            }
+          >
             <Reader
               key={doc.id}
               doc={doc}
@@ -175,6 +182,7 @@ export function App() {
             <Login />
           ) : route === 'library' ? (
             <Library
+              loading={loading || !folders}
               docs={docs}
               folders={folders ?? []}
               view={view}
@@ -184,9 +192,16 @@ export function App() {
               onUpload={upload}
             />
           ) : (
-            <Landing docs={docs} folders={folders ?? []} theme={theme} onToggleTheme={toggleTheme} onOpen={open} />
+            <Landing
+              docs={docs}
+              folders={folders ?? []}
+              loading={loading || !folders}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              onOpen={open}
+            />
           )}
-          {route !== 'login' && <Garden docs={docs} />}
+          {route !== 'login' && !loading && <Garden docs={docs} />}
           <BreakOverlay pomo={pomo} />
         </>
       )}

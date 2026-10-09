@@ -17,6 +17,7 @@ import { PdfPage, type PageMark, type PageRect } from './PdfPage';
 import { ReaderSidebar, type SidebarTab } from './ReaderSidebar';
 import type { SearchHit } from '../lib/pdfSearch';
 import type { Rect } from '../lib/db';
+import { PageSkeleton } from './Skeleton';
 import { Sounds } from './Sounds';
 import { toast } from './Toast';
 
@@ -704,7 +705,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
       >
         {error && <div className="viewer-message">{error}</div>}
         {!pdf && !error && (
-          <div className="viewer-message muted">{downloading ? 'Bajando el PDF de la nube…' : 'Abriendo…'}</div>
+          <PageSkeleton label={downloading ? 'Bajando el PDF de la nube…' : 'Abriendo el PDF…'} />
         )}
         {pdf && (
           <div className="pages">

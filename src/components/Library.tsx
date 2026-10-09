@@ -7,6 +7,7 @@ import { sortEvaluations } from '../lib/evaluations';
 import { downloadBlob } from '../lib/download';
 import { Link, navigate } from '../lib/router';
 import { Icon } from './Icon';
+import { ShelfSkeleton } from './Skeleton';
 import { TomatoTimer } from './Pomodoro';
 import { toast } from './Toast';
 
@@ -14,6 +15,7 @@ import { toast } from './Toast';
 export type FolderView = 'all' | 'none' | string;
 
 interface Props {
+  loading: boolean;
   docs: Doc[];
   folders: Folder[];
   view: FolderView;
@@ -25,7 +27,7 @@ interface Props {
 
 const DOC_MIME = 'text/x-apuntes-doc';
 
-export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }: Props) {
+export function Library({ loading, docs, folders, view, onView, pomo, onOpen, onUpload }: Props) {
   const sortedFolders = [...folders].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const sortedDocs = [...docs].sort((a, b) => b.openedAt - a.openedAt);
   const inFolder = (id: string | null) => sortedDocs.filter((d) => (d.folderId ?? null) === id);
@@ -71,7 +73,7 @@ export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }:
             <span>2</span> Elegí qué leer
           </h2>
 
-          <FolderBar
+          {!loading && <FolderBar
             folders={sortedFolders}
             counts={Object.fromEntries(sortedFolders.map((f) => [f.id, inFolder(f.id).length]))}
             total={docs.length}
@@ -80,7 +82,7 @@ export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }:
             onView={onView}
             onDropDoc={moveTo}
             nextEval={nextEval}
-          />
+          />}
 
           {current && (
             <FolderHeader
@@ -91,7 +93,9 @@ export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }:
             />
           )}
 
-          {docs.length === 0 ? (
+          {loading ? (
+            <ShelfSkeleton />
+          ) : docs.length === 0 ? (
             <button className="dropzone" onClick={onUpload}>
               <Icon name="upload" size={28} />
               <strong>Subí tus apuntes de clase</strong>

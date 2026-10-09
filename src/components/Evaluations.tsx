@@ -17,6 +17,7 @@ import { Link, navigate } from '../lib/router';
 import { pagesRead, progressOf } from '../lib/stats';
 import { Icon } from './Icon';
 import { EvalCalendar } from './EvalCalendar';
+import { EvalListSkeleton } from './Skeleton';
 import { useLocalState } from '../lib/storage';
 import { toast } from './Toast';
 
@@ -71,7 +72,9 @@ export function Evaluations({ evalId, docs, folders, onOpenDoc }: Props) {
           status={evalStatus(current, docs)}
           onOpenDoc={onOpenDoc}
         />
-      ) : !evaluations ? null : evaluations.length === 0 ? (
+      ) : !evaluations ? (
+        <EvalListSkeleton />
+      ) : evaluations.length === 0 ? (
         <button className="dropzone" onClick={() => void create()}>
           <Icon name="calendar" size={28} />
           <strong>Anotá tu primer parcial o TP</strong>

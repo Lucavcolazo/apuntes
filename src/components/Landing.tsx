@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { formatDuration } from '../lib/dates';
+import { heroDone, markHeroDone, useHeroDone } from '../lib/hero';
 import { db, type Doc, type Folder } from '../lib/db';
 import { Link, navigate } from '../lib/router';
 import { useLocalState } from '../lib/storage';
@@ -9,11 +10,16 @@ import { AccountButton, GuestBanner } from './Account';
 import { EvalChecklist } from './EvalChecklist';
 import { Heatmap } from './Heatmap';
 import { Icon } from './Icon';
+import { DashboardSkeleton } from './Skeleton';
 import { Splat } from './Splat';
+
+// Arreglo vacío estable mientras cargan los datos (no rompe los useMemo).
+const NONE: never[] = [];
 
 interface Props {
   docs: Doc[];
   folders: Folder[];
+  loading: boolean;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   onOpen: (id: string) => void;
@@ -22,27 +28,31 @@ interface Props {
 type Phase = 'idle' | 'fly' | 'hit';
 const FLY_MS = 850;
 
-export function Landing({ docs, folders, theme, onToggleTheme, onOpen }: Props) {
+export function Landing({ docs, folders, loading, theme, onToggleTheme, onOpen }: Props) {
   const dashRef = useRef<HTMLElement>(null);
-  // Si venís desde la app (/#inicio) o con movimiento reducido, no hay tomatazo: la mancha ya está.
+  const heroGone = useHeroDone();
+  // Tomatazo solo la primera vez en esta carga, entrando a "/" y sin movimiento reducido.
   const [intro] = useState(
-    () => location.hash !== '#inicio' && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+    () =>
+      !heroDone() && location.hash !== '#inicio' && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
   );
   const [phase, setPhase] = useState<Phase>(intro ? 'idle' : 'hit');
   const [seed] = useState(() => Math.floor(Math.random() * 1e9));
 
   useEffect(() => {
     if (!intro) {
-      if (location.hash === '#inicio') {
-        dashRef.current?.scrollIntoView();
-        // Sacamos el #inicio de la URL: si después apretás F5, el tomatazo se repite.
-        navigate('/', { replace: true });
-      }
+      markHeroDone();
+      if (location.hash === '#inicio') navigate('/', { replace: true });
       return;
     }
     window.scrollTo(0, 0);
     let userScrolled = false;
-    const onScroll = () => (userScrolled = window.scrollY > 40);
+    const onScroll = () => {
+      userScrolled = window.scrollY > 40;
+      // Cuando el resumen llega arriba (solo o porque bajaste), el hero se va hasta el próximo F5.
+      const dash = dashRef.current;
+      if (dash && window.scrollY >= dash.offsetTop - 4) markHeroDone();
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     const timers = [
       setTimeout(() => setPhase('fly'), 400),
@@ -56,54 +66,75 @@ export function Landing({ docs, folders, theme, onToggleTheme, onOpen }: Props) 
     };
   }, [intro]);
 
+  // Al sacar el hero, el resumen pasa a estar arriba de todo: sin salto visible.
+  useLayoutEffect(() => {
+    if (heroGone) window.scrollTo(0, 0);
+  }, [heroGone]);
+
   return (
     <div className="landing">
-      <section className={`hero phase-${phase}`}>
-        <nav className="hero-nav">
-          <span className="hero-brand">
-            <img src="/favicon.svg" alt="" width={26} height={26} /> Tomapuntes
-          </span>
-          <div className="head-actions">
-            <button className="icon-btn" onClick={onToggleTheme} title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
-              <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
-            </button>
-            <Link to="/apuntes" className="btn ghost">
-              Mi espacio
-            </Link>
-            <AccountButton />
-          </div>
-        </nav>
+      {!heroGone && (
+        <section className={`hero phase-${phase}`}>
+          <nav className="hero-nav">
+            <span className="hero-brand">
+              <img src="/favicon.svg" alt="" width={26} height={26} /> Tomapuntes
+            </span>
+            <div className="head-actions">
+              <button className="icon-btn" onClick={onToggleTheme} title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
+                <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+              </button>
+              <Link to="/apuntes" className="btn ghost">
+                Mi espacio
+              </Link>
+              <AccountButton />
+            </div>
+          </nav>
 
-        <div className="hero-center">
-          <div className="hero-title-wrap">
-            <h1 className="hero-title">Tomapuntes</h1>
-            {phase === 'fly' && (
-              <div className="flyer" aria-hidden="true">
-                <div className="flyer-y">
-                  <img src="/favicon.svg" alt="" draggable={false} />
+          <div className="hero-center">
+            <div className="hero-title-wrap">
+              <h1 className="hero-title">Tomapuntes</h1>
+              {phase === 'fly' && (
+                <div className="flyer" aria-hidden="true">
+                  <div className="flyer-y">
+                    <img src="/favicon.svg" alt="" draggable={false} />
+                  </div>
                 </div>
-              </div>
-            )}
-            {phase === 'hit' && <Splat seed={seed} animate={intro} />}
+              )}
+              {phase === 'hit' && <Splat seed={seed} animate={intro} />}
+            </div>
+            <p className="hero-sub">Leé, subrayá y descansá. Un tomate a la vez.</p>
           </div>
-          <p className="hero-sub">Leé, subrayá y descansá. Un tomate a la vez.</p>
-        </div>
+        </section>
+      )}
 
-      </section>
-
-      <section id="inicio" ref={dashRef} className="dash">
-        <Dashboard docs={docs} folders={folders} onOpen={onOpen} />
+      <section id="inicio" ref={dashRef} className={`dash ${heroGone ? 'solo' : ''}`}>
+        <Dashboard docs={docs} folders={folders} loading={loading} onOpen={onOpen} />
       </section>
     </div>
   );
 }
 
-function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; onOpen: (id: string) => void }) {
-  const reading = useLiveQuery(() => db.reading.toArray(), [], []);
-  const pomodoros = useLiveQuery(() => db.pomodoros.toArray(), [], []);
-  const highlights = useLiveQuery(() => db.highlights.toArray(), [], []);
+function Dashboard({
+  docs,
+  folders,
+  loading,
+  onOpen,
+}: {
+  docs: Doc[];
+  folders: Folder[];
+  loading: boolean;
+  onOpen: (id: string) => void;
+}) {
+  const loadedReading = useLiveQuery(() => db.reading.toArray(), []);
+  const loadedPomodoros = useLiveQuery(() => db.pomodoros.toArray(), []);
+  const loadedHighlights = useLiveQuery(() => db.highlights.toArray(), []);
+  const loadedEvaluations = useLiveQuery(() => db.evaluations.toArray(), []);
+  const reading = loadedReading ?? NONE;
+  const pomodoros = loadedPomodoros ?? NONE;
+  const highlights = loadedHighlights ?? NONE;
+  const evaluations = loadedEvaluations ?? NONE;
+  const stillLoading = loading || !loadedReading || !loadedPomodoros || !loadedHighlights || !loadedEvaluations;
   const [goal, setGoal] = useLocalState('apuntes.goal', 30);
-  const evaluations = useLiveQuery(() => db.evaluations.toArray(), [], []);
   const stats = useMemo(() => computeStats(docs, folders, reading, pomodoros), [docs, folders, reading, pomodoros]);
   const folderName = new Map(folders.map((f) => [f.id, f.name]));
   const docFolder = new Map(docs.map((d) => [d.id, d.folderId ?? null]));
@@ -123,6 +154,8 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
   const delta =
     stats.prevWeekMs > 0 ? Math.round(((stats.weekMs - stats.prevWeekMs) / stats.prevWeekMs) * 100) : null;
   const today = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  if (stillLoading) return <DashboardSkeleton />;
 
   return (
     <>

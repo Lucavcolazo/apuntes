@@ -4555,3 +4555,128 @@ a.btn {
     min-height: 86px;
   }
 }
+/* Sin hero, la barra ocupa su lugar arriba: el resumen arranca más cerca. */
+.dash.solo {
+  padding-top: 14px;
+}
+
+/* ==========================================================================
+   Skeletons de carga
+   ========================================================================== */
+.skel {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  /* Un paso más marcado que la superficie, para que la silueta se lea sobre el crema. */
+  background: color-mix(in srgb, var(--ink) 9%, var(--surface));
+  flex: none;
+}
+.skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--surface) 70%, transparent),
+    transparent
+  );
+  animation: skel-shine 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes skel-shine {
+  to {
+    transform: translateX(100%);
+  }
+}
+.dash-skeleton,
+.shelf-skeleton {
+  animation: fade-in 0.2s ease;
+}
+.skel-heat {
+  display: grid;
+  grid-template-columns: repeat(26, 13px);
+  grid-template-rows: repeat(7, 13px);
+  grid-auto-flow: column;
+  gap: 3px;
+  margin-top: 22px;
+  overflow: hidden;
+}
+.skel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+.skel-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.skel-cover {
+  aspect-ratio: 3 / 4;
+}
+.skel-card {
+  pointer-events: none;
+}
+
+/* Lector: página en blanco con renglones */
+.page-skeleton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 90px 16px;
+}
+.skel-page {
+  width: min(560px, 100%);
+  aspect-ratio: 1 / 1.414;
+  padding: 9% 10%;
+  background: #f5efe2;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.45);
+}
+.skel-page .skel {
+  background: #e4dccb;
+}
+.skel-page .skel::after {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.6), transparent);
+}
+.skel-caption {
+  margin: 0;
+  font-size: 12.5px;
+  color: #9d9485;
+}
+.reader-loading {
+  display: block;
+  overflow: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skel::after {
+    display: none;
+  }
+}
+
+/* Barra: todo agrupado al centro (logo · secciones · tema y cuenta). */
+.app-nav-inner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 28px;
+}
+.nav-brand,
+.nav-links,
+.nav-end {
+  justify-self: auto;
+  margin: 0;
+}
+.nav-end {
+  gap: 4px;
+}
+@media (max-width: 560px) {
+  .app-nav-inner {
+    gap: 8px;
+  }
+}
