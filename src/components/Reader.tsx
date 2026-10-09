@@ -13,6 +13,7 @@ import { HighlightsPanel } from './HighlightsPanel';
 import { Icon } from './Icon';
 import { BreakOverlay, MiniTomato } from './Pomodoro';
 import { PdfPage, type PageRect } from './PdfPage';
+import { Sounds } from './Sounds';
 import { toast } from './Toast';
 
 interface Props {
@@ -49,7 +50,8 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
   const [idle, setIdle] = useState(false);
   const [saving, setSaving] = useState(false);
   const history = useHighlightHistory(doc.id);
-  useReadingTracker(doc.id, pomo.overlay !== 'none' || (pomo.running && pomo.mode !== 'focus'));
+  const onBreak = pomo.overlay !== 'none' || (pomo.running && pomo.mode !== 'focus');
+  useReadingTracker(doc.id, onBreak);
   // Marcador fijo: con un color elegido, cada selección se subraya sola.
   const [marker, setMarker] = useLocalState<ColorKey | null>('apuntes.marker', null);
   const markerRef = useRef(marker);
@@ -493,6 +495,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
             <Icon name="save" size={15} />
             {saving ? 'Guardando…' : unsaved ? 'Guardar en PDF' : 'Guardado'}
           </button>
+          <Sounds paused={onBreak} />
           <MiniTomato pomo={pomo} />
           <button
             className={`icon-btn ${panelOpen ? 'active' : ''}`}

@@ -6,6 +6,10 @@
  */
 import { useSyncExternalStore } from 'react';
 
+// La posición de scroll la maneja cada pantalla. Si no, con F5 el navegador te devuelve
+// al resumen y el tomatazo pasa arriba, fuera de la vista.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
 window.addEventListener('popstate', notify);

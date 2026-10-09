@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDuration } from '../lib/dates';
 import { db, type Doc, type Folder } from '../lib/db';
-import { Link } from '../lib/router';
+import { Link, navigate } from '../lib/router';
 import { computeStats, type DayStat } from '../lib/stats';
 import { Icon } from './Icon';
 import { Splat } from './Splat';
@@ -29,7 +29,11 @@ export function Landing({ docs, folders, theme, onToggleTheme, onOpen }: Props) 
 
   useEffect(() => {
     if (!intro) {
-      if (location.hash === '#inicio') dashRef.current?.scrollIntoView();
+      if (location.hash === '#inicio') {
+        dashRef.current?.scrollIntoView();
+        // Sacamos el #inicio de la URL: si después apretás F5, el tomatazo se repite.
+        navigate('/', { replace: true });
+      }
       return;
     }
     window.scrollTo(0, 0);

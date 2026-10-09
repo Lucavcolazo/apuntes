@@ -21,6 +21,7 @@ Abrí http://localhost:5173.
 - **Subrayar**: seleccioná texto y elegí un color. Ese color queda como **marcador**: lo que selecciones después se subraya solo con esa categoría. Cambialo desde la barra o con las teclas `1`–`4`; apagalo tocando el mismo color, con `0` o `Esc`. Mantené `⌥ Option` al seleccionar para no subrayar.
 - **Deshacer**: `⌘Z` / `⌘⇧Z` (o los botones de la barra) para subrayados, colores, notas y borrados.
 - Clic sobre un subrayado para cambiarle el color, agregar una nota o borrarlo.
+- **Sonidos para leer** (auriculares en la barra de lectura): ventilador, avión, gotas y ruido blanco. Se generan en el momento (sin archivos ni internet), se pueden mezclar con volumen propio y bajan solos durante las pausas del pomodoro.
 - **Exportar**: desde el panel de subrayados, a Markdown, al portapapeles o a un resumen para imprimir o guardar como PDF.
 
 ## Subrayados dentro del PDF
