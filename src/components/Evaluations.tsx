@@ -31,7 +31,6 @@ const prettyDate = (date: string) =>
 
 export function Evaluations({ evalId, docs, folders, onOpenDoc }: Props) {
   const evaluations = useLiveQuery(() => db.evaluations.toArray());
-  const highlights = useLiveQuery(() => db.highlights.toArray(), [], []);
   const current = evalId ? evaluations?.find((e) => e.id === evalId) : null;
   const [savedView, setView] = useLocalState<'list' | 'calendar'>('apuntes.evalView', 'list');
   // ?vista=calendario (desde la entrada) abre directo el calendario.
@@ -66,7 +65,7 @@ export function Evaluations({ evalId, docs, folders, onOpenDoc }: Props) {
           ev={current}
           docs={docs}
           folders={folders}
-          status={evalStatus(current, docs, highlights)}
+          status={evalStatus(current, docs)}
           onOpenDoc={onOpenDoc}
         />
       ) : !evaluations ? null : evaluations.length === 0 ? (
@@ -96,7 +95,7 @@ export function Evaluations({ evalId, docs, folders, onOpenDoc }: Props) {
           {view === 'calendar' ? (
             <EvalCalendar evaluations={evaluations} folders={folders} />
           ) : (
-            <EvaluationList evaluations={evaluations} folderName={folderName} docs={docs} highlights={highlights} />
+            <EvaluationList evaluations={evaluations} folderName={folderName} docs={docs} />
           )}
         </>
       )}
@@ -108,16 +107,14 @@ function EvaluationList({
   evaluations,
   folderName,
   docs,
-  highlights,
 }: {
   evaluations: Evaluation[];
   folderName: (id: string | null) => string | undefined;
   docs: Doc[];
-  highlights: Parameters<typeof evalStatus>[2];
 }) {
   const { upcoming, past } = sortEvaluations(evaluations);
   const card = (ev: Evaluation) => {
-    const st = evalStatus(ev, docs, highlights);
+    const st = evalStatus(ev, docs);
     const finished = ev.done || st.days < 0;
     return (
       <Link key={ev.id} to={`/parciales/${ev.id}`} className={`eval-card ${finished ? 'finished' : ''} ${!finished && st.days <= 7 ? 'soon' : ''}`}>
@@ -272,15 +269,6 @@ function EvaluationDetail({
               </span>
             </div>
           )}
-          <div>
-            <span className="tile-value tabular">{status.due}</span>
-            <span className="muted">para repasar</span>
-          </div>
-          {status.due > 0 && (
-            <Link to={`/repaso?parcial=${ev.id}`} className="btn primary">
-              <Icon name="cards" size={15} /> Repasar estos apuntes
-            </Link>
-          )}
         </div>
       </section>
 
@@ -334,7 +322,7 @@ function EvaluationDetail({
           </div>
           {status.docs.length === 0 ? (
             <div className="card-empty">
-              <p className="muted">Conectá los PDFs que entran y vas a ver cuánto te falta y qué repasar.</p>
+              <p className="muted">Conectá los PDFs que entran y vas a ver cuánto te falta leer.</p>
               <button className="btn primary sm" onClick={() => setPicking(true)}>
                 Conectar apuntes
               </button>

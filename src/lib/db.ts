@@ -66,7 +66,7 @@ export interface Highlight extends Synced {
   text: string;
   note: string;
   createdAt: number;
-  /** Repaso espaciado: en qué "caja" está y cuándo vuelve a tocar. Sin esto, es nueva. */
+  /** Repaso espaciado (la función está pausada; el dato se conserva para cuando vuelva). */
   review?: Review;
 }
 

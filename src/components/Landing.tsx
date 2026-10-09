@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDuration } from '../lib/dates';
 import { db, type Doc, type Folder } from '../lib/db';
 import { Link, navigate } from '../lib/router';
-import { reviewQueue } from '../lib/review';
 import { useLocalState } from '../lib/storage';
 import { computeStats } from '../lib/stats';
 import { AccountButton, GuestBanner } from './Account';
@@ -109,7 +108,6 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
   const folderName = new Map(folders.map((f) => [f.id, f.name]));
   const docFolder = new Map(docs.map((d) => [d.id, d.folderId ?? null]));
   const live = highlights.filter((h) => docFolder.has(h.docId));
-  const due = reviewQueue(live);
 
   const byDay = useMemo(() => {
     const map = new Map<string, number>();
@@ -170,16 +168,14 @@ function Dashboard({ docs, folders, onOpen }: { docs: Doc[]; folders: Folder[]; 
             hint={stats.streak ? 'seguidos leyendo' : 'leé hoy para empezar'}
           />
           <Tile label="Pomodoros hoy" value={String(stats.pomodorosToday)} hint={`${stats.pomodorosTotal} en total`} />
-          <Link to="/repaso" className="tile tile-link">
-            <span className="stat-label">Para repasar</span>
-            <span className="tile-value">{due.length}</span>
-            <span className="muted tile-hint">
-              {due.length ? 'Repasar ahora →' : `${live.length} subrayados al día`}
-            </span>
-          </Link>
+          <Tile
+            label="Subrayados"
+            value={String(live.length)}
+            hint={`en ${new Set(live.map((h) => h.docId)).size} ${new Set(live.map((h) => h.docId)).size === 1 ? 'libro' : 'libros'}`}
+          />
         </div>
 
-        <EvalChecklist evaluations={evaluations} docs={docs} folders={folders} highlights={live} />
+        <EvalChecklist evaluations={evaluations} docs={docs} folders={folders} />
 
         <article className="card continue-card">
           <h3>Seguí leyendo</h3>

@@ -7,7 +7,6 @@ import { Library, type FolderView } from './components/Library';
 import { Login } from './components/Login';
 import { BreakOverlay } from './components/Pomodoro';
 import { Reader } from './components/Reader';
-import { Review } from './components/Review';
 import { toast, Toaster } from './components/Toast';
 import { useFaviconProgress } from './hooks/useFaviconProgress';
 import { usePomodoro } from './hooks/usePomodoro';
@@ -28,9 +27,7 @@ export function App() {
       ? 'library'
       : path.startsWith('/parciales')
       ? 'evals'
-      : path.startsWith('/repaso')
-        ? 'review'
-        : path.startsWith('/entrar')
+      : path.startsWith('/entrar')
           ? 'login'
           : 'landing';
 
@@ -62,13 +59,18 @@ export function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // El repaso se sacó por ahora: los links viejos van a la biblioteca.
+  useEffect(() => {
+    if (path.startsWith('/repaso')) navigate('/apuntes', { replace: true });
+  }, [path]);
+
   // Un link a un libro que ya no existe vuelve a la biblioteca.
   useEffect(() => {
     if (readerId && loadedDocs && !doc) navigate('/apuntes', { replace: true });
   }, [readerId, loadedDocs, doc]);
 
   useEffect(() => {
-    if (route === 'library' || route === 'review' || route === 'evals') window.scrollTo(0, 0);
+    if (route === 'library' || route === 'evals') window.scrollTo(0, 0);
   }, [route]);
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -163,8 +165,6 @@ export function App() {
             />
           ) : route === 'login' ? (
             <Login />
-          ) : route === 'review' ? (
-            <Review docs={docs} folders={folders ?? []} labels={labels} />
           ) : route === 'library' ? (
             <Library
               docs={docs}

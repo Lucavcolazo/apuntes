@@ -384,7 +384,7 @@ export function Reader({ doc, folderName, highlights, labels, setLabels, pomo, o
     });
   }, []);
 
-  // ?h=<id>: venimos del repaso o de la búsqueda y hay que ir a ese subrayado.
+  // ?h=<id>: link directo a un subrayado.
   const pendingJump = useRef(new URLSearchParams(location.search).get('h'));
   useEffect(() => {
     const id = pendingJump.current;

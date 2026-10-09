@@ -2,12 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { daysUntil } from '../lib/dates';
 import { db } from '../lib/db';
-import { reviewQueue } from '../lib/review';
 import { Link } from '../lib/router';
 import { AccountButton } from './Account';
 import { Icon, type IconName } from './Icon';
 
-export type NavRoute = 'landing' | 'library' | 'evals' | 'review';
+export type NavRoute = 'landing' | 'library' | 'evals';
 
 interface Props {
   route: NavRoute;
@@ -34,12 +33,7 @@ export function AppNav({ route, theme, onToggleTheme }: Props) {
     return () => window.removeEventListener('scroll', onScroll);
   }, [reveal]);
 
-  // Insignias: tarjetas para repasar y fechas de esta semana.
-  const due = useLiveQuery(async () => {
-    const [docs, highlights] = await Promise.all([db.docs.toCollection().primaryKeys(), db.highlights.toArray()]);
-    const ids = new Set(docs);
-    return reviewQueue(highlights.filter((h) => ids.has(h.docId))).length;
-  }, [], 0);
+  // Insignia: fechas de esta semana.
   const soon = useLiveQuery(
     async () => (await db.evaluations.toArray()).filter((e) => !e.done && daysUntil(e.date) >= 0 && daysUntil(e.date) <= 7).length,
     [],
@@ -50,7 +44,6 @@ export function AppNav({ route, theme, onToggleTheme }: Props) {
     { to: '/#inicio', label: 'Inicio', icon: 'chart', key: 'landing' },
     { to: '/apuntes', label: 'Mis apuntes', icon: 'book', key: 'library' },
     { to: '/parciales', label: 'Parciales y TPs', icon: 'calendar', key: 'evals', badge: soon },
-    { to: '/repaso', label: 'Repasar', icon: 'cards', key: 'review', badge: due },
   ];
 
   return (

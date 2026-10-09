@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { daysUntil } from '../lib/dates';
-import { createEvaluation, db, EVAL_KINDS, type Doc, type Evaluation, type Folder, type Highlight } from '../lib/db';
+import { createEvaluation, db, EVAL_KINDS, type Doc, type Evaluation, type Folder } from '../lib/db';
 import { evalStatus } from '../lib/evaluations';
 import { Link, navigate } from '../lib/router';
 import { Icon } from './Icon';
@@ -9,7 +9,6 @@ interface Props {
   evaluations: Evaluation[];
   docs: Doc[];
   folders: Folder[];
-  highlights: Highlight[];
 }
 
 function whenText(days: number, kind: Evaluation['kind']) {
@@ -21,7 +20,7 @@ function whenText(days: number, kind: Evaluation['kind']) {
 }
 
 /** Parciales y TPs pendientes, ordenados por fecha, para ir tildando. */
-export function EvalChecklist({ evaluations, docs, folders, highlights }: Props) {
+export function EvalChecklist({ evaluations, docs, folders }: Props) {
   // Lo que tildás en esta visita queda tachado a la vista (no desaparece de golpe).
   const [justDone, setJustDone] = useState<Set<string>>(new Set());
   const folderName = new Map(folders.map((f) => [f.id, f.name]));
@@ -69,7 +68,7 @@ export function EvalChecklist({ evaluations, docs, folders, highlights }: Props)
         <ul className="checklist">
           {items.map((ev) => {
             const days = daysUntil(ev.date);
-            const st = evalStatus(ev, docs, highlights);
+            const st = evalStatus(ev, docs);
             const late = !ev.done && days < 0;
             return (
               <li key={ev.id} className={`${ev.done ? 'done' : ''} ${late ? 'late' : ''} ${!ev.done && days >= 0 && days <= 3 ? 'urgent' : ''}`}>
@@ -97,11 +96,6 @@ export function EvalChecklist({ evaluations, docs, folders, highlights }: Props)
                     {st.notesOpen > 0 && ` · ${st.notesOpen} ${st.notesOpen === 1 ? 'nota' : 'notas'}`}
                   </span>
                 </Link>
-                {st.due > 0 && !ev.done && (
-                  <Link to={`/repaso?parcial=${ev.id}`} className="btn ghost sm">
-                    Repasar {st.due}
-                  </Link>
-                )}
               </li>
             );
           })}

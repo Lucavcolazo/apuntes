@@ -22,8 +22,7 @@ Abrí http://localhost:5173.
 - **Deshacer**: `⌘Z` / `⌘⇧Z` (o los botones de la barra) para subrayados, colores, notas y borrados.
 - Clic sobre un subrayado para cambiarle el color, agregar una nota o borrarlo.
 - **Sonidos para leer** (auriculares en la barra de lectura): ventilador, avión, gotas y ruido blanco. Se generan en el momento (sin archivos ni internet), se pueden mezclar con volumen propio y bajan solos durante las pausas del pomodoro.
-- **Repaso** (`/repaso`): tus subrayados como tarjetas con repaso espaciado. Primero las "Duda"; las que sabés vuelven en 1, 3, 7, 16 y 35 días.
-- **Parciales y TPs** (`/parciales`): fecha, materia, notas tipo checklist y los apuntes que entran. Te dice cuánto falta leer, a qué ritmo y qué repasar.
+- **Parciales y TPs** (`/parciales`): fecha, materia, notas tipo checklist y los apuntes que entran. Te dice cuánto falta leer y a qué ritmo. También en calendario.
 - **Buscar e índice** en el lector (`⌘F`): sin distinguir acentos ni mayúsculas, aunque la página no esté dibujada.
 - **Meta diaria** en el resumen, y el tomate de la pestaña se llena con el pomodoro.
 - **Copia de seguridad**: un .zip con PDFs, subrayados, notas, estadísticas y ajustes (botón de archivo en la biblioteca).

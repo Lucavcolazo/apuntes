@@ -5,7 +5,6 @@ import { exportBackup, importBackup } from '../lib/backup';
 import { daysUntil, whenLabel } from '../lib/dates';
 import { createEvaluation, createFolder, db, deleteDoc, deleteFolder, EVAL_KINDS, type Doc, type Evaluation, type Folder } from '../lib/db';
 import { sortEvaluations } from '../lib/evaluations';
-import { reviewQueue } from '../lib/review';
 import { downloadBlob } from '../lib/files';
 import { Link, navigate } from '../lib/router';
 import { Icon } from './Icon';
@@ -42,9 +41,6 @@ export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }:
 
   const shown = view === 'all' ? sortedDocs : inFolder(view === 'none' ? null : view);
 
-  const highlights = useLiveQuery(() => db.highlights.toArray(), [], []);
-  const docIds = new Set(docs.map((d) => d.id));
-  const dueCount = reviewQueue(highlights.filter((h) => docIds.has(h.docId))).length;
   const evaluations = useLiveQuery(() => db.evaluations.toArray(), [], []);
   const { upcoming } = sortEvaluations(evaluations);
   /** Lo próximo a rendir de cada carpeta. */
@@ -56,11 +52,6 @@ export function Library({ docs, folders, view, onView, pomo, onOpen, onUpload }:
       <header className="page-head">
         <h1>Mis apuntes</h1>
         <div className="head-actions">
-          {current && dueCount > 0 && (
-            <Link to={`/repaso?carpeta=${current.id}`} className="btn ghost">
-              <Icon name="cards" size={16} /> Repasar {current.name}
-            </Link>
-          )}
           <BackupMenu />
           <button className="btn primary" onClick={onUpload}>
             <Icon name="upload" size={16} /> Subir PDF{current ? ` a ${current.name}` : ''}
